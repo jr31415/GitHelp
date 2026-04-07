@@ -2,3 +2,4 @@ auth.dat
 api.dat
 .DS_Store
 .DS_Store
+/__pycache__

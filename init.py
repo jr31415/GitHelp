@@ -55,9 +55,6 @@ else:
             console.input("[red]GitHub authentication failed, please reenter credentials[/red]: ")
             success = False
 
-
-
-
 #Verify/Add Gemini API key
 if gemini_api.is_file():
     console.print("\nIt appears you already have setup Gemini API access, verifying...")
