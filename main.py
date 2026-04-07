@@ -45,7 +45,7 @@ while not exit:
         lines = [l.strip() for l in response.text.strip().split('\n') if l.strip()]
         
 
-        for line in lines:
+        for line in lines:    
             try:
                 command, out1, out2, out3 = ai_to_commands.interpret(line)
                 if command == "TEXT":
@@ -54,9 +54,6 @@ while not exit:
                     user_input = ""
                     while not user_input:
                         user_input = ai_to_commands.ask(out1, out2, out3)
-                    if user_input.lower() in ("exit", "quit"):
-                        exit = True
-                        break
                     user_response = user_input
                 elif command == "READONL":
                     result = ai_to_commands.readonl(github, out1, out2, out3)
@@ -79,6 +76,9 @@ while not exit:
                 elif command == "RUNCOMMAND":
                     output, ran = ai_to_commands.runcommand(out1, out2, out3)
                     user_response = f"Command output:\n{output}" if ran else "User denied the command."
+                elif command == "EXIT":
+                    exit = True
+                    break
                 else:
                     console.print(f"[yellow]Unhandled command: {command}[/yellow]")
                     exit = True

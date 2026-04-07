@@ -6,7 +6,8 @@ from pathlib import Path
 import subprocess
 console = Console()
 
-possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC", "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND"]
+possiblecommands = ["EXIT", "READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
+                     "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -42,7 +43,7 @@ def text(*outs: tuple) -> None:
     if output == "":
         raise ValueError("No 'text' command found in Gemimi output")
     
-    print(output)
+    console.print(f"[orange]{output}[/orange]" + "\n")
 
 def ask(*outs: tuple) -> str:
     output = ""
@@ -122,10 +123,9 @@ def writeloc(*outs: tuple) -> bool:
     if file == "" or contents == "" or reason == "":
         raise ValueError("Gemini output requires file, new_file_contents, and reason parameters")
     
-    authorization = console.input(f"GitHelp is attempting to overwrite a file at location [blue]{str(file)}[/blue] \
-                  with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to \
-                    perform this action? Respond \"yes\" or \"no\": ")
-    
+    authorization = console.input(f"GitHelp is attempting to overwrite a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"yes\" or \"no\": ")
+    console.print("\n")
+
     if authorization.lower() in ("yes", "y", "yes."):
         file.write_text(contents)
         return True
@@ -153,10 +153,9 @@ def runcommand(*outs: tuple) -> tuple[str, bool]:
     if command == "" or reason == "":
         raise ValueError("Gemini output requires command and reason parameters")
     
-    authorization = console.input(f"GitHelp is attempting to bash command [blue]{command}[/blue] \
-                  with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to \
-                    perform this action? Respond \"yes\" or \"no\": ")
-    
+    authorization = console.input(f"GitHelp is attempting the bash command [blue]{command}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"yes\" or \"no\": ")
+    console.print("\n")
+
     if authorization.lower() in ("yes", "y", "yes."):
         out = subprocess.run(command, capture_output=True, text=True, shell=True)
         return (out.stdout + out.stderr, True)
