@@ -38,8 +38,10 @@ while not exit:
     for attempt in range(MAX_RETRIES):
         parse_failed = False
         lines = [l.strip() for l in response.text.strip().split('\n') if l.strip()]
+        
 
         for line in lines:
+            print(line)
             try:
                 command, out1, out2, out3 = ai_to_commands.interpret(line)
                 if command == "TEXT":
@@ -52,12 +54,22 @@ while not exit:
                         exit = True
                         break
                     user_response = user_input
+                elif command == "READONL":
+                    result = ai_to_commands.readonl(github, out1, out2, out3)
+                    user_response = f"File contents:\n{result}"
+                elif command == "REPOSTRUCTONL":
+                    result = ai_to_commands.repostructonl(github, out1, out2, out3)
+                    user_response = f"Repo structure:\n{result}"
+                elif command == "REPOLIST":
+                    result = ai_to_commands.repolist(github)
+                    user_response = f"Available repos:\n{result}"
                 else:
                     console.print(f"[yellow]Unhandled command: {command}[/yellow]")
                     exit = True
                     break
-            except ValueError:
+            except (ValueError, GithubException) as e:
                 parse_failed = True
+                response = chat.send_message(f"Command failed: {e}. Please try again.")
                 break
 
         if exit or not parse_failed:
