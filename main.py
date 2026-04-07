@@ -5,6 +5,7 @@ from github import Github, GithubException
 from github import Auth
 from pathlib import Path
 from google import genai
+from google.genai import types
 from google.genai import errors as genai_errors
 console = Console()
 console.clear()
@@ -23,7 +24,11 @@ gemini = genai.Client(api_key=key)
 
 chat = gemini.chats.create(
     model=model,
-    config={"system_instruction": Path("prompt.txt").read_text()}
+    
+    config=types.GenerateContentConfig(
+        thinking_config=types.ThinkingConfig(thinking_level="low"),
+        system_instruction=Path("prompt.txt").read_text()
+    )
 )
 
 response = chat.send_message("Start")
@@ -41,7 +46,6 @@ while not exit:
         
 
         for line in lines:
-            print(line)
             try:
                 command, out1, out2, out3 = ai_to_commands.interpret(line)
                 if command == "TEXT":
@@ -63,6 +67,18 @@ while not exit:
                 elif command == "REPOLIST":
                     result = ai_to_commands.repolist(github)
                     user_response = f"Available repos:\n{result}"
+                elif command == "READLOC":
+                    result = ai_to_commands.readloc(out1, out2, out3)
+                    user_response = f"File contents:\n{result}"
+                elif command == "WRITELOC":
+                    wrote = ai_to_commands.writeloc(out1, out2, out3)
+                    user_response = "File written successfully." if wrote else "User denied the file write."
+                elif command == "STRUCTLOC":
+                    result = ai_to_commands.structloc(out1, out2, out3)
+                    user_response = f"Directory structure:\n{result}"
+                elif command == "RUNCOMMAND":
+                    output, ran = ai_to_commands.runcommand(out1, out2, out3)
+                    user_response = f"Command output:\n{output}" if ran else "User denied the command."
                 else:
                     console.print(f"[yellow]Unhandled command: {command}[/yellow]")
                     exit = True
@@ -77,7 +93,7 @@ while not exit:
 
         if attempt < MAX_RETRIES - 1:
             response = chat.send_message(
-                "Your response was not formatted correctly. Please respond using only TEXT: or ASK: commands."
+                "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, or RUNCOMMAND."
             )
         else:
             console.print(f"[red]Failed to get a valid response after {MAX_RETRIES} attempts. Exiting.[/red]")

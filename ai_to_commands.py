@@ -2,11 +2,13 @@ from rich.console import Console
 import re
 from github import Github, GithubException
 from github import Auth
+from pathlib import Path
+import subprocess
 console = Console()
 
 possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC", "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND"]
 
-def interpret(text: str):
+def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
     if match is None:
         stripped = text.strip()
@@ -91,3 +93,72 @@ def repolist(g: Github, *_) -> str:
             if repo not in repos:
                 repos.append(repo)
     return "\n".join(repo.full_name for repo in repos)
+
+def readloc(*outs: tuple) -> str:
+    file = ""
+    for out in outs:
+        if out[0] == "file":
+            file = Path(out[1])
+    if file == "":
+        raise ValueError("Gemini output requires a file parameter")
+    
+    try: #function will return text if able, else will return binary
+        output = file.read_text()
+    except Exception:
+        output = "File could only be read as binary, the following is the file binary: " + str(file.read_bytes())
+                                                                                               
+    return output
+
+
+def writeloc(*outs: tuple) -> bool:
+    file, contents, reason = "", "", ""
+    for out in outs:
+        if out[0] == "file":
+            file = Path(out[1])
+        if out[0] == "new_file_contents":
+            contents = out[1]
+        if out[0] == "reason":
+            reason = out[1]
+    if file == "" or contents == "" or reason == "":
+        raise ValueError("Gemini output requires file, new_file_contents, and reason parameters")
+    
+    authorization = console.input(f"GitHelp is attempting to overwrite a file at location [blue]{str(file)}[/blue] \
+                  with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to \
+                    perform this action? Respond \"yes\" or \"no\": ")
+    
+    if authorization.lower() in ("yes", "y", "yes."):
+        file.write_text(contents)
+        return True
+    else:
+        return False
+
+def structloc(*outs: tuple) -> str:
+    directory = ""
+    for out in outs:
+        if out[0] == "dir":
+            directory = Path(out[1])
+    if directory == "":
+        raise ValueError("Gemini output requires a dir parameter")
+    if not directory.is_dir():
+        raise ValueError(f"{directory} is not a valid directory")
+    return "\n".join(str(p) for p in sorted(directory.rglob("*")))
+
+def runcommand(*outs: tuple) -> tuple[str, bool]:
+    command, reason = "", ""
+    for out in outs:
+        if out[0] == "command":
+            command = out[1]
+        if out[0] == "reason":
+            reason = out[1]
+    if command == "" or reason == "":
+        raise ValueError("Gemini output requires command and reason parameters")
+    
+    authorization = console.input(f"GitHelp is attempting to bash command [blue]{command}[/blue] \
+                  with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to \
+                    perform this action? Respond \"yes\" or \"no\": ")
+    
+    if authorization.lower() in ("yes", "y", "yes."):
+        out = subprocess.run(command, capture_output=True, text=True, shell=True)
+        return (out.stdout + out.stderr, True)
+    else:
+        return (None, False)
