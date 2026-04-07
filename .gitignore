@@ -1,5 +1,1 @@
-auth.dat
-api.dat
-.DS_Store
-.DS_Store
-/__pycache__
+auth.dat\napi.dat\n.DS_Store\n/__pycache__\n.venv/
