@@ -1,3 +1,4 @@
+import re
 import init
 import ai_to_commands
 from rich.console import Console
@@ -40,49 +41,64 @@ while not exit:
     user_response = None
     parse_failed = False
 
+    writeloc_pattern = re.compile(
+        r'WRITELOC:[^\n]*file="((?:[^"\\]|\\.)*)"[^\n]*reason="((?:[^"\\]|\\.)*)"[^\n]*\n<FILE>\n(.*?)\n</FILE>',
+        re.DOTALL
+    )
+
     for attempt in range(MAX_RETRIES):
         parse_failed = False
-        lines = [l.strip() for l in response.text.strip().split('\n') if l.strip()]
-        
 
-        for line in lines:    
+        writeloc_blocks = []
+        def _extract(m):
+            writeloc_blocks.append((m.group(1), m.group(2), m.group(3)))
+            return '__WRITELOC__'
+        processed_text = writeloc_pattern.sub(_extract, response.text.strip())
+
+        writeloc_idx = 0
+        lines = [l.strip() for l in processed_text.split('\n') if l.strip()]
+
+        for line in lines:
             try:
-                command, out1, out2, out3 = ai_to_commands.interpret(line)
-                if command == "TEXT":
-                    ai_to_commands.text(out1, out2, out3)
-                elif command == "ASK":
-                    user_input = ""
-                    while not user_input:
-                        user_input = ai_to_commands.ask(out1, out2, out3)
-                    user_response = user_input
-                elif command == "READONL":
-                    result = ai_to_commands.readonl(github, out1, out2, out3)
-                    user_response = f"File contents:\n{result}"
-                elif command == "REPOSTRUCTONL":
-                    result = ai_to_commands.repostructonl(github, out1, out2, out3)
-                    user_response = f"Repo structure:\n{result}"
-                elif command == "REPOLIST":
-                    result = ai_to_commands.repolist(github)
-                    user_response = f"Available repos:\n{result}"
-                elif command == "READLOC":
-                    result = ai_to_commands.readloc(out1, out2, out3)
-                    user_response = f"File contents:\n{result}"
-                elif command == "WRITELOC":
-                    wrote = ai_to_commands.writeloc(out1, out2, out3)
+                if line == '__WRITELOC__':
+                    file_path, reason, content = writeloc_blocks[writeloc_idx]
+                    writeloc_idx += 1
+                    wrote = ai_to_commands.writeloc_direct(file_path, content, reason)
                     user_response = "File written successfully." if wrote else "User denied the file write."
-                elif command == "STRUCTLOC":
-                    result = ai_to_commands.structloc(out1, out2, out3)
-                    user_response = f"Directory structure:\n{result}"
-                elif command == "RUNCOMMAND":
-                    output, ran = ai_to_commands.runcommand(out1, out2, out3)
-                    user_response = f"Command output:\n{output}" if ran else "User denied the command."
-                elif command == "EXIT":
-                    exit = True
-                    break
                 else:
-                    console.print(f"[yellow]Unhandled command: {command}[/yellow]")
-                    exit = True
-                    break
+                    command, out1, out2, out3 = ai_to_commands.interpret(line)
+                    if command == "TEXT":
+                        ai_to_commands.text(out1, out2, out3)
+                    elif command == "ASK":
+                        user_input = ""
+                        while not user_input:
+                            user_input = ai_to_commands.ask(out1, out2, out3)
+                        user_response = user_input
+                    elif command == "READONL":
+                        result = ai_to_commands.readonl(github, out1, out2, out3)
+                        user_response = f"File contents:\n{result}"
+                    elif command == "REPOSTRUCTONL":
+                        result = ai_to_commands.repostructonl(github, out1, out2, out3)
+                        user_response = f"Repo structure:\n{result}"
+                    elif command == "REPOLIST":
+                        result = ai_to_commands.repolist(github)
+                        user_response = f"Available repos:\n{result}"
+                    elif command == "READLOC":
+                        result = ai_to_commands.readloc(out1, out2, out3)
+                        user_response = f"File contents:\n{result}"
+                    elif command == "STRUCTLOC":
+                        result = ai_to_commands.structloc(out1, out2, out3)
+                        user_response = f"Directory structure:\n{result}"
+                    elif command == "RUNCOMMAND":
+                        output, ran = ai_to_commands.runcommand(out1, out2, out3)
+                        user_response = f"Command output:\n{output}" if ran else "User denied the command."
+                    elif command == "EXIT":
+                        exit = True
+                        break
+                    else:
+                        console.print(f"[yellow]Unhandled command: {command}[/yellow]")
+                        exit = True
+                        break
             except (ValueError, GithubException) as e:
                 parse_failed = True
                 response = chat.send_message(f"Command failed: {e}. Please try again.")

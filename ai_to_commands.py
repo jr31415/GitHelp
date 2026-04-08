@@ -22,12 +22,12 @@ def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     if aicommand not in possiblecommands:
         raise ValueError(f"Gemini model output in incorrect format (invalid command: {aicommand})")
     
-    matches = re.findall(r'(\w+)="([^"]*)"', text)
+    matches = re.findall(r'(\w+)="((?:[^"\\]|\\.)*)"', text)
     while len(matches) < 3:
         matches.append((None, None))
 
     params = tuple(m[0] for m in matches)
-    values = tuple(m[1] for m in matches)
+    values = tuple(m[1].replace('\\"', '"') if m[1] is not None else None for m in matches)
     
     out1 = (params[0], values[0])
     out2 = (params[1], values[1])
@@ -43,7 +43,7 @@ def text(*outs: tuple) -> None:
     if output == "":
         raise ValueError("No 'text' command found in Gemimi output")
     
-    console.print(f"[orange]{output}[/orange]" + "\n")
+    console.print(f"{output}" + "\n")
 
 def ask(*outs: tuple) -> str:
     output = ""
@@ -70,7 +70,7 @@ def readonl(g: Github, *outs: tuple) -> str:
     repo = g.get_repo(repolink)
     file_content = repo.get_contents(file_location)
 
-    return file_content
+    return file_content.decoded_content.decode('utf-8')
     
 def repostructonl(g: Github, *outs: tuple) -> str:
     repolink = ""
@@ -107,7 +107,7 @@ def readloc(*outs: tuple) -> str:
         output = file.read_text()
     except Exception:
         output = "File could only be read as binary, the following is the file binary: " + str(file.read_bytes())
-                                                                                               
+
     return output
 
 
@@ -117,15 +117,28 @@ def writeloc(*outs: tuple) -> bool:
         if out[0] == "file":
             file = Path(out[1])
         if out[0] == "new_file_contents":
-            contents = out[1]
+            contents = out[1].replace("\\n", "\n")
         if out[0] == "reason":
             reason = out[1]
     if file == "" or contents == "" or reason == "":
-        raise ValueError("Gemini output requires file, new_file_contents, and reason parameters")
-    
-    authorization = console.input(f"GitHelp is attempting to overwrite a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[]\" to confirm, or anything else to deny: ")
+        raise ValueError("Gemini output requires file, new_file_contents, and reason parameters")    
+    if file.is_file():
+        authorization = console.input(f"GitHelp is attempting to overwrite a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+    else:
+        authorization = console.input(f"GitHelp is attempting to write a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")    
     console.print("\n")
 
+    if authorization.lower() in ("yes", "y", "yes."):
+        file.write_text(contents)
+        return True
+    else:
+        return False
+
+def writeloc_direct(file_path: str, contents: str, reason: str) -> bool:
+    file = Path(file_path)
+    action = "overwrite" if file.is_file() else "write"
+    authorization = console.input(f"GitHelp is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+    console.print("\n")
     if authorization.lower() in ("yes", "y", "yes."):
         file.write_text(contents)
         return True
