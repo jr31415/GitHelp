@@ -123,7 +123,7 @@ def writeloc(*outs: tuple) -> bool:
     if file == "" or contents == "" or reason == "":
         raise ValueError("Gemini output requires file, new_file_contents, and reason parameters")
     
-    authorization = console.input(f"GitHelp is attempting to overwrite a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"yes\" or \"no\": ")
+    authorization = console.input(f"GitHelp is attempting to overwrite a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[]\" to confirm, or anything else to deny: ")
     console.print("\n")
 
     if authorization.lower() in ("yes", "y", "yes."):
@@ -153,7 +153,7 @@ def runcommand(*outs: tuple) -> tuple[str, bool]:
     if command == "" or reason == "":
         raise ValueError("Gemini output requires command and reason parameters")
     
-    authorization = console.input(f"GitHelp is attempting the bash command [blue]{command}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"yes\" or \"no\": ")
+    authorization = console.input(f"GitHelp is attempting the bash command [blue]{command}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
     console.print("\n")
 
     if authorization.lower() in ("yes", "y", "yes."):
