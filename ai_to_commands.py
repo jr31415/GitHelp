@@ -7,7 +7,7 @@ import subprocess
 console = Console()
 
 possiblecommands = ["EXIT", "READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
-                     "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND"]
+                     "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND", "AUTHGH"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -175,26 +175,6 @@ def runcommand(*outs: tuple) -> tuple[str, bool]:
     else:
         return (None, False)
     
-#def gotoparentdir(*_: tuple) -> str:
-#    try:
-#        subprocess.run("cd ../", shell=True)
-#        return "Successfully went to parent directory"
-#    except:
-#        return "Failed to go to parent directory"
-#
-#def currentdir(*_: tuple) -> str:
-#    out = subprocess.run("pwd", capture_output=True, text=True, shell=True)
-#    return out.stdout + out.stderr
-#
-#def workspace(*outs: tuple) -> str:
-#    directory = ""
-#    for out in outs:
-#        if out[0] == "dir":
-#            directory = Path(out[1])
-#    if directory == "":
-#        raise ValueError("Gemini output requires a dir parameter")
-#    if not directory.is_dir():
-#        raise ValueError(f"{directory} is not a valid directory")
-#    out = subprocess.run(f"cd {directory}", capture_output=True, text=True, shell=True)
-#    return out.strout + out.stderr
-    
+def authgh(*_: tuple) -> str:
+    out = subprocess.run("gh auth login --with-token < ./auth.dat", capture_output=True, text=True, shell=True)
+    return out.stdout + out.stderr
