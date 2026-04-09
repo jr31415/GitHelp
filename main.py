@@ -1,4 +1,5 @@
 import re
+import time
 import init
 import ai_to_commands
 from rich.console import Console
@@ -13,6 +14,19 @@ console.clear()
 
 #Settings for Gemini
 model="gemini-3-flash-preview"
+
+def send_with_retry(chat, message, max_retries=5):
+    delay = 5
+    for attempt in range(max_retries):
+        try:
+            return chat.send_message(message)
+        except genai_errors.APIError as e:
+            if e.code == 429 and attempt < max_retries - 1:
+                console.print(f"[yellow]Rate limited, retrying in {delay}s...[/yellow]")
+                time.sleep(delay)
+                delay *= 2
+            else:
+                raise
 
 
 login_details = Path("auth.dat")
@@ -32,7 +46,7 @@ chat = gemini.chats.create(
     )
 )
 
-response = chat.send_message("Start")
+response = send_with_retry(chat, "Start")
 
 MAX_RETRIES = 5
 
@@ -92,15 +106,15 @@ while not exit:
                     elif command == "RUNCOMMAND":
                         output, ran = ai_to_commands.runcommand(out1, out2, out3)
                         user_response = f"Command output:\n{output}" if ran else "User denied the command."
-                    elif command == "GOTOPARENTDIR":
-                        result = ai_to_commands.gotoparentdir(out1, out2, out3)
-                        user_response = result
-                    elif command == "CURRENTDIR":
-                        result = ai_to_commands.currentdir(out1, out2, out3)
-                        user_response = f"Command output: {result}"
-                    elif command == "WORKSPACE":
-                        result = ai_to_commands.workspace(out1, out2, out3)
-                        user_response = f"Command output: {result}" 
+#                    elif command == "GOTOPARENTDIR":
+#                        result = ai_to_commands.gotoparentdir(out1, out2, out3)
+#                        user_response = result
+#                    elif command == "CURRENTDIR":
+#                        result = ai_to_commands.currentdir(out1, out2, out3)
+#                        user_response = f"Command output: {result}"
+#                    elif command == "WORKSPACE":
+#                        result = ai_to_commands.workspace(out1, out2, out3)
+#                        user_response = f"Command output: {result}" 
                     elif command == "EXIT":
                         exit = True
                         break
@@ -110,14 +124,14 @@ while not exit:
                         break
             except (ValueError, GithubException) as e:
                 parse_failed = True
-                response = chat.send_message(f"Command failed: {e}. Please try again.")
+                response = send_with_retry(chat, f"Command failed: {e}. Please try again.")
                 break
 
         if exit or not parse_failed:
             break
 
         if attempt < MAX_RETRIES - 1:
-            response = chat.send_message(
+            response = send_with_retry(chat,
                 "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, or RUNCOMMAND."
             )
         else:
@@ -127,5 +141,5 @@ while not exit:
     if exit:
         break
 
-    response = chat.send_message(user_response if user_response is not None else "Done")
+    response = send_with_retry(chat, user_response if user_response is not None else "Done")
 

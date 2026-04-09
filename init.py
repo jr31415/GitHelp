@@ -4,6 +4,8 @@ from github import Auth
 from pathlib import Path
 from google import genai
 from google.genai import errors as genai_errors
+import subprocess
+import sys
 console = Console()
 
 access_token = ""
@@ -11,6 +13,33 @@ login_details = Path("auth.dat")
 gemini_api = Path("api.dat")
 
 console.print("[green]Welcome to[/green] [bold][red]Gitpanion[/red][/bold][green], the agentic AI designed to make your life working with Git and GitHub easier.")
+
+# Check and install brew and gh
+def is_installed(command: str) -> bool:
+    return subprocess.run(["which", command], capture_output=True).returncode == 0
+
+if not is_installed("brew"):
+    console.print("[yellow]Homebrew not found. Installing...[/yellow]")
+    result = subprocess.run(
+        '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+        shell=True
+    )
+    if result.returncode != 0:
+        console.print("[red]Failed to install Homebrew. Please install it manually from https://brew.sh[/red]")
+        sys.exit(1)
+    console.print("[green]Homebrew installed successfully.[/green]")
+else:
+    console.print("[green]Homebrew is already installed.[/green]")
+
+if not is_installed("gh"):
+    console.print("[yellow]GitHub CLI (gh) not found. Installing via Homebrew...[/yellow]")
+    result = subprocess.run(["brew", "install", "gh"])
+    if result.returncode != 0:
+        console.print("[red]Failed to install gh. Please install it manually: https://cli.github.com[/red]")
+        sys.exit(1)
+    console.print("[green]GitHub CLI installed successfully.[/green]")
+else:
+    console.print("[green]GitHub CLI is already installed.[/green]")
 
 def attempt_login(access_token: str) -> Github:
     auth = Auth.Token(access_token)
