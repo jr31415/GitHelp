@@ -10,7 +10,7 @@ access_token = ""
 login_details = Path("auth.dat")
 gemini_api = Path("api.dat")
 
-console.print("[green]Welcome to[/green] [bold][red]GitHelp[/red][/bold][green], the agentic AI designed to make your life working with Git and GitHub easier.")
+console.print("[green]Welcome to[/green] [bold][red]Gitpanion[/red][/bold][green], the agentic AI designed to make your life working with Git and GitHub easier.")
 
 def attempt_login(access_token: str) -> Github:
     auth = Auth.Token(access_token)

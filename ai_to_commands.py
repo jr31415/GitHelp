@@ -7,7 +7,8 @@ import subprocess
 console = Console()
 
 possiblecommands = ["EXIT", "READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
-                     "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND"]
+                     "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND", 
+                     "GOTOPARENTDIR", "CURRENTDIR", "WORKSPACE"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -123,9 +124,9 @@ def writeloc(*outs: tuple) -> bool:
     if file == "" or contents == "" or reason == "":
         raise ValueError("Gemini output requires file, new_file_contents, and reason parameters")    
     if file.is_file():
-        authorization = console.input(f"GitHelp is attempting to overwrite a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+        authorization = console.input(f"Gitpanion is attempting to overwrite a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
     else:
-        authorization = console.input(f"GitHelp is attempting to write a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")    
+        authorization = console.input(f"Gitpanion is attempting to write a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")    
     console.print("\n")
 
     if authorization.lower() in ("yes", "y", "yes."):
@@ -137,7 +138,7 @@ def writeloc(*outs: tuple) -> bool:
 def writeloc_direct(file_path: str, contents: str, reason: str) -> bool:
     file = Path(file_path)
     action = "overwrite" if file.is_file() else "write"
-    authorization = console.input(f"GitHelp is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+    authorization = console.input(f"Gitpanion is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
     console.print("\n")
     if authorization.lower() in ("yes", "y", "yes."):
         file.write_text(contents)
@@ -166,7 +167,7 @@ def runcommand(*outs: tuple) -> tuple[str, bool]:
     if command == "" or reason == "":
         raise ValueError("Gemini output requires command and reason parameters")
     
-    authorization = console.input(f"GitHelp is attempting the bash command [blue]{command}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize GitHelp to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+    authorization = console.input(f"Gitpanion is attempting the bash command [blue]{command}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
     console.print("\n")
 
     if authorization.lower() in ("yes", "y", "yes."):
@@ -174,3 +175,27 @@ def runcommand(*outs: tuple) -> tuple[str, bool]:
         return (out.stdout + out.stderr, True)
     else:
         return (None, False)
+    
+def gotoparentdir(*_: tuple) -> str:
+    try:
+        subprocess.run("cd ../", shell=True)
+        return "Successfully went to parent directory"
+    except:
+        return "Failed to go to parent directory"
+
+def currentdir(*_: tuple) -> str:
+    out = subprocess.run("pwd", capture_output=True, text=True, shell=True)
+    return out.stdout + out.stderr
+
+def workspace(*outs: tuple) -> str:
+    directory = ""
+    for out in outs:
+        if out[0] == "dir":
+            directory = Path(out[1])
+    if directory == "":
+        raise ValueError("Gemini output requires a dir parameter")
+    if not directory.is_dir():
+        raise ValueError(f"{directory} is not a valid directory")
+    out = subprocess.run(f"cd {directory}", capture_output=True, text=True, shell=True)
+    return out.strout + out.stderr
+    

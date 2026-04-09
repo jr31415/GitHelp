@@ -92,6 +92,15 @@ while not exit:
                     elif command == "RUNCOMMAND":
                         output, ran = ai_to_commands.runcommand(out1, out2, out3)
                         user_response = f"Command output:\n{output}" if ran else "User denied the command."
+                    elif command == "GOTOPARENTDIR":
+                        result = ai_to_commands.gotoparentdir(out1, out2, out3)
+                        user_response = result
+                    elif command == "CURRENTDIR":
+                        result = ai_to_commands.currentdir(out1, out2, out3)
+                        user_response = f"Command output: {result}"
+                    elif command == "WORKSPACE":
+                        result = ai_to_commands.workspace(out1, out2, out3)
+                        user_response = f"Command output: {result}" 
                     elif command == "EXIT":
                         exit = True
                         break
