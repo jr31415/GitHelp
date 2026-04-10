@@ -7,8 +7,8 @@ import subprocess
 console = Console()
 
 possiblecommands = ["EXIT", "READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
-                     "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND", 
-                     "AUTHGH", "STATUS", "DIFF"]
+                     "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND",
+                     "AUTHGH", "STATUS", "DIFF", "SETTINGS"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -112,34 +112,15 @@ def readloc(*outs: tuple) -> str:
     return output
 
 
-def writeloc(*outs: tuple) -> bool:
-    file, contents, reason = "", "", ""
-    for out in outs:
-        if out[0] == "file":
-            file = Path(out[1])
-        if out[0] == "new_file_contents":
-            contents = out[1].replace("\\n", "\n")
-        if out[0] == "reason":
-            reason = out[1]
-    if file == "" or contents == "" or reason == "":
-        raise ValueError("Gemini output requires file, new_file_contents, and reason parameters")    
-    if file.is_file():
-        authorization = console.input(f"Gitpanion is attempting to overwrite a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
-    else:
-        authorization = console.input(f"Gitpanion is attempting to write a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")    
-    console.print("\n")
 
-    if authorization.lower() in ("yes", "y", "yes."):
-        file.write_text(contents)
-        return True
-    else:
-        return False
-
-def writeloc_direct(file_path: str, contents: str, reason: str) -> bool:
+def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool = False) -> bool:
     file = Path(file_path)
     action = "overwrite" if file.is_file() else "write"
-    authorization = console.input(f"Gitpanion is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
-    console.print("\n")
+    if not autowrite:
+        authorization = console.input(f"Gitpanion is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+        console.print("\n")
+    else:
+        authorization = "yes"
     if authorization.lower() in ("yes", "y", "yes."):
         file.write_text(contents)
         return True
@@ -157,7 +138,7 @@ def structloc(*outs: tuple) -> str:
         raise ValueError(f"{directory} is not a valid directory")
     return "\n".join(str(p) for p in sorted(directory.rglob("*")))
 
-def runcommand(*outs: tuple) -> tuple[str, bool]:
+def runcommand(*outs: tuple, autorun: bool = False) -> tuple[str, bool]:
     command, reason = "", ""
     for out in outs:
         if out[0] == "command":
@@ -166,9 +147,11 @@ def runcommand(*outs: tuple) -> tuple[str, bool]:
             reason = out[1]
     if command == "" or reason == "":
         raise ValueError("Gemini output requires command and reason parameters")
-    
-    authorization = console.input(f"Gitpanion is attempting the bash command [blue]{command}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
-    console.print("\n")
+    if not autorun:
+        authorization = console.input(f"Gitpanion is attempting the bash command [blue]{command}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+        console.print("\n")
+    else:
+        authorization = "yes"
 
     if authorization.lower() in ("yes", "y", "yes."):
         out = subprocess.run(command, capture_output=True, text=True, shell=True)
@@ -180,10 +163,80 @@ def authgh(*_: tuple) -> str:
     out = subprocess.run("gh auth login --with-token < ./auth.dat", capture_output=True, text=True, shell=True)
     return out.stdout + out.stderr
 
-def status(*_: tuple) -> str:
-    out = subprocess.run("git status", capture_output=True, text=True, shell=True)
+def status(*outs: tuple) -> str:
+    directory = ""
+    for out in outs:
+        if out[0] == "dir":
+            directory = Path(out[1])
+    if directory == "":
+        raise ValueError("Gemini output requires a dir parameter")
+    if not directory.is_dir():
+        raise ValueError(f"{directory} is not a valid directory")
+    out = subprocess.run(["git", "-C", str(directory), "status"], capture_output=True, text=True)
     return out.stdout + out.stderr
 
-def diff(*_: tuple) -> str:
-    out = subprocess.run("git diff", capture_output=True, text=True, shell=True)
+def diff(*outs: tuple) -> str:
+    directory = ""
+    for out in outs:
+        if out[0] == "dir":
+            directory = Path(out[1])
+    if directory == "":
+        raise ValueError("Gemini output requires a dir parameter")
+    if not directory.is_dir():
+        raise ValueError(f"{directory} is not a valid directory")
+    out = subprocess.run(["git", "-C", str(directory), "diff"], capture_output=True, text=True)
     return out.stdout + out.stderr
+
+def settings(*_: tuple) -> None:
+    file = Path("./settings.txt")
+    if file.is_file():
+        settings = file.read_text().split("\n")
+        settingname = r"^(.*)="
+        settingval = r"=(.*)$"
+
+        rules = dict()
+        for setting in settings:
+            name_match = re.match(settingname, setting)
+            val_match = re.search(settingval, setting)
+            if name_match and val_match:
+                val_str = val_match.group(1)
+                if val_str == "TRUE":
+                    rules[name_match.group(1)] = True
+                elif val_str == "FALSE":
+                    rules[name_match.group(1)] = False
+                else:
+                    rules[name_match.group(1)] = val_str
+    else:
+        file.write_text("autorun=FALSE\nautowrite=FALSE\ndefaultgithubdir=\n")
+        console.print("Settings file created, reask Githelp about settings to edit settings")
+        return
+    for setting in rules.keys():
+        if setting == "autorun" or setting == "autowrite" or setting == "debug":
+            newrule = console.input(f"Would you like to enable {setting}? Type \"yes\" or \"no\" (all other inputs will be treated as a no): ")
+            if newrule.lower() in ["yes", "yes.", "y"]:
+                console.print(f"{setting} [green]enabled[/green]")
+                rules[setting] = "TRUE"
+            else:
+                console.print(f"{setting} [red]disabled[/red]")
+                rules[setting] = "FALSE"
+        elif setting == "defaultgithubdir":
+            while True:
+                newrule = console.input("Please drag and drop/paste the location of your default GitHub directory into the terminal, or type \"none\" to have no default directory: ").strip(" ")
+                if newrule.lower() in ["n", "none", "none."]:
+                    break
+                newrule = Path(newrule)
+                if newrule.is_dir():
+                    rules["defaultgithubdir"] = newrule
+                    console.print(f"{newrule} set as default directory for Gitpanion")
+                    break
+                else:
+                    console.print("[red]Error! Directory not found, please try again.[/red]")
+                    continue
+    newrules = []
+    for itm in rules.items():
+        newrules.append(f"{itm[0]}={itm[1]}")
+    
+    file.write_text("\n".join(newrules))
+
+
+

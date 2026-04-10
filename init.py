@@ -6,6 +6,7 @@ from google import genai
 from google.genai import errors as genai_errors
 import subprocess
 import sys
+import re
 console = Console()
 
 access_token = ""
@@ -102,3 +103,28 @@ while not success:
     except genai_errors.APIError:
         console.print("[red]Authentication failed, please enter Gemini API key[/red]")
         key = console.input("Gemini API key: ")
+
+def get_settings():
+    file = Path("./settings.txt")
+    if file.is_file():
+        settings = file.read_text().split("\n")
+        settingname = r"^(.*)="
+        settingval = r"=(.*)$"
+
+        rules = dict()
+        for setting in settings:
+            name_match = re.match(settingname, setting)
+            val_match = re.search(settingval, setting)
+            if name_match and val_match:
+                val_str = val_match.group(1)
+                if val_str == "TRUE":
+                    rules[name_match.group(1)] = True
+                elif val_str == "FALSE":
+                    rules[name_match.group(1)] = False
+                else:
+                    rules[name_match.group(1)] = val_str
+
+        return rules
+    else:
+        file.write_text("autorun=FALSE\nautowrite=FALSE\ndefaultgithubdir=\n")
+        return get_settings()

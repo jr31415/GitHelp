@@ -15,6 +15,8 @@ console.clear()
 #Settings for Gemini
 model="gemini-3-flash-preview"
 
+rules = init.get_settings()
+
 def send_with_retry(chat, message, max_retries=5):
     delay = 5
     for attempt in range(max_retries):
@@ -37,12 +39,15 @@ key = gemini_api.read_text().strip()
 github = init.attempt_login(access_token)
 gemini = genai.Client(api_key=key)
 
+prompt = Path("prompt.txt").read_text()
+default_dir = rules.get("defaultgithubdir")
+system_instruction = prompt + f"\n\nUser's default GitHub directory:{default_dir}" if default_dir else prompt
+
 chat = gemini.chats.create(
     model=model,
-    
     config=types.GenerateContentConfig(
         thinking_config=types.ThinkingConfig(thinking_level="low"),
-        system_instruction=Path("prompt.txt").read_text()
+        system_instruction=system_instruction
     )
 )
 
@@ -73,14 +78,20 @@ while not exit:
         lines = [l.strip() for l in processed_text.split('\n') if l.strip()]
 
         for line in lines:
+            if rules.get("debug"):
+                console.print(f"[bold]RECEIVED <- [/bold][orange]{line}[/orange]")
             try:
                 if line == '__WRITELOC__':
+                    if rules.get("debug"):
+                        console.print("[bold]ATTEMPT COMMAND: [/bold][yellow]__WRITELOC__[/yellow]")
                     file_path, reason, content = writeloc_blocks[writeloc_idx]
                     writeloc_idx += 1
-                    wrote = ai_to_commands.writeloc_direct(file_path, content, reason)
+                    wrote = ai_to_commands.writeloc_direct(file_path, content, reason, autowrite=rules.get("autowrite"))
                     user_response = "File written successfully." if wrote else "User denied the file write."
                 else:
                     command, out1, out2, out3 = ai_to_commands.interpret(line)
+                    if rules.get("debug"):
+                        console.print(f"[bold]ATTEMPT COMMAND: [/bold][yellow]{command}[/yellow]")
                     if command == "TEXT":
                         ai_to_commands.text(out1, out2, out3)
                     elif command == "ASK":
@@ -104,7 +115,7 @@ while not exit:
                         result = ai_to_commands.structloc(out1, out2, out3)
                         user_response = f"Directory structure:\n{result}"
                     elif command == "RUNCOMMAND":
-                        output, ran = ai_to_commands.runcommand(out1, out2, out3)
+                        output, ran = ai_to_commands.runcommand(out1, out2, out3, autorun=rules.get("autorun"))
                         user_response = f"Command output:\n{output}" if ran else "User denied the command."
                     elif command == "AUTHGH":
                         output = ai_to_commands.authgh(out1, out2, out3)
@@ -115,6 +126,13 @@ while not exit:
                     elif command == "DIFF":
                         output = ai_to_commands.diff(out1, out2, out3)
                         user_response = f"Command output:\n{output}"
+                    elif command == "SETTINGS":
+                        ai_to_commands.settings(out1, out2, out3)
+                        rules = init.get_settings()
+                        if default_dir:
+                            user_response = f"User updated their settings, default GitHub directory is now {default_dir} ask them what they want to do next."
+                        else: 
+                            user_response = f"User updated their settings, ask them what they want to do next."
                     elif command == "EXIT":
                         exit = True
                         break
@@ -132,7 +150,7 @@ while not exit:
 
         if attempt < MAX_RETRIES - 1:
             response = send_with_retry(chat,
-                "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, or RUNCOMMAND."
+                "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, or DIFF."
             )
         else:
             console.print(f"[red]Failed to get a valid response after {MAX_RETRIES} attempts. Exiting.[/red]")
@@ -143,5 +161,6 @@ while not exit:
     
     if user_response:
         user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]")
+        if rules.get("debug"):
+                console.print(f"[bold]SEND -> [/bold][magenta]{user_response}[/magenta]")
     response = send_with_retry(chat, user_response if user_response is not None else "Done")
-

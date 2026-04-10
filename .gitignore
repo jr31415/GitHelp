@@ -1,6 +1,4 @@
+settings.txt
 auth.dat
-api.dat
-.DS_Store
 __pycache__/
-.venv/
-test.txt
+*.pyc
