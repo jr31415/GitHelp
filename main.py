@@ -109,6 +109,12 @@ while not exit:
                     elif command == "AUTHGH":
                         output = ai_to_commands.authgh(out1, out2, out3)
                         user_response = f"Command output:\n{output}"
+                    elif command == "STATUS":
+                        output = ai_to_commands.status(out1, out2, out3)
+                        user_response = f"Command output:\n{output}"
+                    elif command == "DIFF":
+                        output = ai_to_commands.diff(out1, out2, out3)
+                        user_response = f"Command output:\n{output}"
                     elif command == "EXIT":
                         exit = True
                         break
@@ -135,6 +141,7 @@ while not exit:
     if exit:
         break
     
-    user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]")
+    if user_response:
+        user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]")
     response = send_with_retry(chat, user_response if user_response is not None else "Done")
 

@@ -7,7 +7,8 @@ import subprocess
 console = Console()
 
 possiblecommands = ["EXIT", "READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
-                     "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND", "AUTHGH"]
+                     "WRITELOC", "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND", 
+                     "AUTHGH", "STATUS", "DIFF"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -177,4 +178,12 @@ def runcommand(*outs: tuple) -> tuple[str, bool]:
     
 def authgh(*_: tuple) -> str:
     out = subprocess.run("gh auth login --with-token < ./auth.dat", capture_output=True, text=True, shell=True)
+    return out.stdout + out.stderr
+
+def status(*_: tuple) -> str:
+    out = subprocess.run("git status", capture_output=True, text=True, shell=True)
+    return out.stdout + out.stderr
+
+def diff(*_: tuple) -> str:
+    out = subprocess.run("git diff", capture_output=True, text=True, shell=True)
     return out.stdout + out.stderr
