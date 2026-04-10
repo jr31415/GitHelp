@@ -1,4 +1,6 @@
 settings.txt
 auth.dat
+api.dat
 __pycache__/
 *.pyc
+.DS_Store
