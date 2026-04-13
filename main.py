@@ -182,7 +182,7 @@ def main_loop():
 
 def autocommit():
     while not stop_event.is_set():
-        time.sleep(60 * .2) #30 minutes
+        time.sleep(60 * 30) #30 minutes
         if rules.get("autocommit"):
             prompt = Path("autocommitprompt.txt").read_text()
             new_gemini_instance = genai.Client(api_key=key)
@@ -196,14 +196,14 @@ def autocommit():
             diff = subprocess.run(["git", "-C", working_dir, "diff", "HEAD"], capture_output=True, text=True).stdout
             output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n. To approve, respond \"YES 'commit message'\", otherwise respond with \"no\" followed by the reason why you aren't commiting.").text
             if rules.get("debug"):
-                console.print(f"[red]Autocommit rejected output[/red]: {output}")
+                console.print(f"[red]Autocommit output[/red]: {output}")
             if output.strip().lower().startswith("yes"):
                 commit_message = output.strip()[4:].strip()
                 subprocess.run(["git", "-C", working_dir, "add", "."])
                 subprocess.run(["git", "-C", working_dir, "commit", "-m", commit_message])
                 console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
             else:
-                console.print("[yellow]Autocommit skipped by user.[/yellow]")
+                console.print("[yellow]Autocommit skipped.[/yellow]")
 
 
 autocommit_thread = threading.Thread(target=autocommit, name="autocommit", daemon=True)
