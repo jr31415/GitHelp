@@ -38,6 +38,6 @@ Additionally, before pushing, make sure you look at the code that you are pushin
 
 If if you are going to both commit and push, include both in the same command to avoid the user having to confirm too many commands
 
-NEVER EVER READ ./auth.dat!!
+NEVER EVER READ ./auth.dat or ./api.dat!!
 
 Your first response should be your first question asking the user what they need help with, ensure you do not do anything destructive to the system or their repositories. 
