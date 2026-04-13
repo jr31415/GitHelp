@@ -17,6 +17,8 @@ model="gemini-3-flash-preview"
 
 rules = init.get_settings()
 
+print(rules)
+
 def send_with_retry(chat, message, max_retries=5):
     delay = 5
     for attempt in range(max_retries):
@@ -41,7 +43,12 @@ gemini = genai.Client(api_key=key)
 
 prompt = Path("prompt.txt").read_text()
 default_dir = rules.get("defaultgithubdir")
-system_instruction = prompt + f"\n\nUser's default GitHub directory:{default_dir}" if default_dir else prompt
+system_instruction = prompt + f"\n\nUser's default GitHub directory:\"{default_dir}\"" if default_dir else prompt
+
+if rules.get("debug"):
+    console.print(f"[bold]Settings: [/bold]{rules}")
+    console.print(f"[bold]System Instruction: [/bold]{system_instruction}")
+
 
 chat = gemini.chats.create(
     model=model,

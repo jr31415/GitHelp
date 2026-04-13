@@ -136,7 +136,12 @@ def structloc(*outs: tuple) -> str:
         raise ValueError("Gemini output requires a dir parameter")
     if not directory.is_dir():
         raise ValueError(f"{directory} is not a valid directory")
-    return "\n".join(str(p) for p in sorted(directory.rglob("*")))
+    loc = "\n".join(str(p) for p in sorted(directory.rglob("*")))
+    if len(loc) > 10000:
+        loc = "Directory contents too large to display, only showing top level information (search any directories here to read their subdirectories):\n" + "\n".join(str(p) for p in sorted(directory.glob("*")))
+    if len(loc) > 10000:
+        loc = "Directory contents too large to display"
+    return loc
 
 def runcommand(*outs: tuple, autorun: bool = False) -> tuple[str, bool]:
     command, reason = "", ""
