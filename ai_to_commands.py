@@ -237,7 +237,11 @@ def settings(*_: tuple) -> None:
                 rules[setting] = "FALSE"
         elif setting == "defaultgithubdir":
             while True:
-                newrule = console.input("Please drag and drop/paste the location of your default GitHub directory into the terminal, or type \"none\" to have no default directory: ").strip(" ")
+                newrule = console.input("Please drag and drop/paste the location of your default GitHub directory into the terminal, keep the line blank to not change the setting or type \"none\" to have no default directory: ").strip(" ")
+                if not newrule:
+                    rules["defaultgithubdir"] = rules.get("defaultgithubdir")
+                    console.print(f"Default GitHub directory unchanged")
+                    break
                 if newrule.lower() in ["n", "none", "none."]:
                     break
                 newrule = Path(newrule)
