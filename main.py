@@ -44,7 +44,7 @@ gemini = genai.Client(api_key=key)
 
 prompt = Path("prompt.txt").read_text()
 default_dir = rules.get("defaultgithubdir")
-working_dir = default_dir if default_dir else Path.cwd().as_posix()
+autocommit_loc = ""
 system_instruction = prompt + f"\n\nUser's default GitHub directory:\"{default_dir}\"" if default_dir else prompt
 
 if rules.get("debug"):
@@ -68,8 +68,7 @@ writeloc_pattern = re.compile(
 )
 
 def main_loop():
-    autocommit_loc = ""
-    global rules
+    global autocommit_loc, rules
     response = send_with_retry(chat, "Start")
     MAX_RETRIES = 5
 
@@ -93,8 +92,8 @@ def main_loop():
                 if rules.get("autocommit") and not autocommit_loc:
                     is_loc = False
                     while not is_loc:
-                        autocommit_loc = console.input("[yellow]Please provide a working directory for your current project to enable autocommit features, or type \"[bold]Ignore[/bold]\" to not enable it for this instance:[/yellow] ")
-                        if autocommit_loc.strip().lower() in ["ignore", "i"]:
+                        autocommit_loc = console.input("[yellow]Please provide a working directory for your current project to enable autocommit features, or type \"[bold]Ignore[/bold]\" to not enable it for this instance:[/yellow] ").strip()
+                        if autocommit_loc.lower() in ["ignore", "i"]:
                             console.print("[yellow]Autocommit will not be enabled for this instance.[/yellow]")
                             break
                         is_loc = Path(autocommit_loc.strip()).is_dir()
@@ -194,7 +193,10 @@ def main_loop():
 def autocommit():
     while not stop_event.is_set():
         time.sleep(60 * 0.01) #30 minutes
-        if rules.get("autocommit") and working_dir and Path(working_dir.strip()).is_dir():
+        print('hi')
+        if autocommit_loc:
+            print(autocommit_loc.strip())
+        if rules.get("autocommit") and autocommit_loc and Path(autocommit_loc.strip()).is_dir():
             prompt = Path("autocommitprompt.txt").read_text()
             new_gemini_instance = genai.Client(api_key=key)
             autocommit_chat = new_gemini_instance.chats.create(
@@ -204,14 +206,14 @@ def autocommit():
                     system_instruction=prompt
                 )
             )
-            diff = subprocess.run(["git", "-C", working_dir, "diff", "HEAD"], capture_output=True, text=True).stdout
+            diff = subprocess.run(["git", "-C", autocommit_loc.strip(), "diff", "HEAD"], capture_output=True, text=True).stdout
             output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n. To approve, respond \"YES 'commit message'\", otherwise respond with \"no\" followed by the reason why you aren't commiting.").text
             if rules.get("debug"):
                 console.print(f"[red]Autocommit output[/red]: {output}")
             if output.strip().lower().startswith("yes"):
                 commit_message = output.strip()[4:].strip()
-                subprocess.run(["git", "-C", working_dir, "add", "."])
-                subprocess.run(["git", "-C", working_dir, "commit", "-m", commit_message])
+                subprocess.run(["git", "-C", autocommit_loc.strip(), "add", "."])
+                subprocess.run(["git", "-C", autocommit_loc.strip(), "commit", "-m", commit_message])
                 console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
             else:
                 console.print("[yellow]Autocommit skipped.[/yellow]")
