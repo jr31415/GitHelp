@@ -192,6 +192,17 @@ def diff(*outs: tuple) -> str:
     out = subprocess.run(["git", "-C", str(directory), "diff"], capture_output=True, text=True)
     return out.stdout + out.stderr
 
+def update_autocommit_dir(*outs: tuple) -> str:
+    directory = ""
+    for out in outs:
+        if out[0] == "dir":
+            directory = Path(out[1])
+    if directory == "":
+        raise ValueError("Gemini output requires a dir parameter")
+    if not directory.is_dir():
+        raise ValueError(f"{directory} is not a valid directory")
+    return directory
+
 def settings(*_: tuple) -> None:
     file = Path("./settings.txt")
     if file.is_file():

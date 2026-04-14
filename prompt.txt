@@ -29,6 +29,7 @@ exact file contents here
 -If you want to run 'git diff,' respond with 'DIFF: dir=directory' (do not use RUNCOMMAND)
 -If the user wants to exit, respond with EXIT
 -If the user wants to update their settings, respond with SETTINGS
+-If the user wants to update the project they are actively working on/wants to change the autocommit directory, respond with 'UPDATEAUTOCOMMITDIR: dir="directory"'
 
 You can do multiple operations in a row, use this to your advantage to understand all the possible situations a user might be in to understand their question or diagnose their problem. You can only do a new command after the last command finishes, the output of the previous command(s) will be provided to you.
 

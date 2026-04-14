@@ -19,6 +19,7 @@ console.clear()
 model="gemini-3-flash-preview"
 
 rules = init.get_settings()
+autocommit_interval = 30 #default to 30 minutes
 
 def send_with_retry(chat, message, max_retries=5):
     delay = 5
@@ -148,6 +149,10 @@ def main_loop():
                         elif command == "DIFF":
                             output = ai_to_commands.diff(out1, out2, out3)
                             user_response = f"Command output:\n{output}"
+                        elif command == "UPDATEAUTOCOMMITDIR":
+                            output = ai_to_commands.update_autocommit_dir(out1, out2, out3)
+                            autocommit_loc = output
+                            user_response = f"Autocommit directory updated to {autocommit_loc}"
                         elif command == "SETTINGS":
                             ai_to_commands.settings(out1, out2, out3)
                             rules = init.get_settings()
@@ -192,7 +197,7 @@ def main_loop():
 
 def autocommit():
     while not stop_event.is_set():
-        time.sleep(60 * 30) #30 minutes
+        time.sleep(60 * autocommit_interval) #default is 30 minutes
         if rules.get("autocommit") and autocommit_loc and Path(autocommit_loc.strip()).is_dir():
             prompt = Path("autocommitprompt.txt").read_text()
             new_gemini_instance = genai.Client(api_key=key)
