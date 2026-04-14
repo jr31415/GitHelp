@@ -11,6 +11,7 @@ from pathlib import Path
 from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
+import os
 console = Console()
 console.clear()
 
@@ -90,7 +91,16 @@ def main_loop():
 
             for line in lines:
                 if rules.get("autocommit") and not autocommit_loc:
-                    autocommit_loc = console.input("[yellow]Please provide a working directory for your current project to enable autocommit features:[/yellow] ")
+                    is_loc = False
+                    while not is_loc:
+                        autocommit_loc = console.input("[yellow]Please provide a working directory for your current project to enable autocommit features, or type \"[bold]Ignore[/bold]\" to not enable it for this instance:[/yellow] ")
+                        if autocommit_loc.strip().lower() in ["ignore", "i"]:
+                            console.print("[yellow]Autocommit will not be enabled for this instance.[/yellow]")
+                            break
+                        is_loc = Path(autocommit_loc.strip()).is_dir()
+                        if not is_loc:
+                            console.print("[red]Provided directory is not valid, please try again.[/red]")
+                    console.print(f"[green]Autocommit enabled for {autocommit_loc}[/green]")
                 if rules.get("debug"):
                     console.print(f"[bold]RECEIVED <- [/bold][orange]{line}[/orange]")
                 try:
@@ -170,6 +180,7 @@ def main_loop():
                 stop_event.set()
 
         if stop_event.is_set():
+            os._exit(0)
             break
 
         if user_response:
@@ -182,8 +193,8 @@ def main_loop():
 
 def autocommit():
     while not stop_event.is_set():
-        time.sleep(60 * 30) #30 minutes
-        if rules.get("autocommit"):
+        time.sleep(60 * 0.01) #30 minutes
+        if rules.get("autocommit") and working_dir and Path(working_dir.strip()).is_dir():
             prompt = Path("autocommitprompt.txt").read_text()
             new_gemini_instance = genai.Client(api_key=key)
             autocommit_chat = new_gemini_instance.chats.create(
