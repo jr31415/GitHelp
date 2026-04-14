@@ -192,10 +192,7 @@ def main_loop():
 
 def autocommit():
     while not stop_event.is_set():
-        time.sleep(60 * 0.01) #30 minutes
-        print('hi')
-        if autocommit_loc:
-            print(autocommit_loc.strip())
+        time.sleep(60 * 30) #30 minutes
         if rules.get("autocommit") and autocommit_loc and Path(autocommit_loc.strip()).is_dir():
             prompt = Path("autocommitprompt.txt").read_text()
             new_gemini_instance = genai.Client(api_key=key)
