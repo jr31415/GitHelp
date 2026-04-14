@@ -204,7 +204,7 @@ def autocommit():
                 )
             )
             diff = subprocess.run(["git", "-C", autocommit_loc.strip(), "diff", "HEAD"], capture_output=True, text=True).stdout
-            output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n. To approve, respond \"YES 'commit message'\", otherwise respond with \"no\" followed by the reason why you aren't commiting.").text
+            output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n. To approve, respond \"YES\" followed by the commit message, otherwise respond with \"no\" followed by the reason why you aren't commiting.").text
             if rules.get("debug"):
                 console.print(f"[red]Autocommit output[/red]: {output}")
             if output.strip().lower().startswith("yes"):
