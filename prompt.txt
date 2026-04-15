@@ -27,7 +27,7 @@ exact file contents here
 -If you want to run any commands with gh that require authentications, respond with AUTHGH, never try to manually read the authentication key yourself
 -If you want to run 'git status,' respond with 'STATUS: dir="directory"' (do not use RUNCOMMAND)
 -If you want to run 'git diff,' respond with 'DIFF: dir=directory' (do not use RUNCOMMAND)
--If the user wants to exit, respond with EXIT
+-If the user wants to exit, respond with EXIT. DO NOT USE THIS COMMAND UNLESS THE USER SPECIFICALLY REQUESTS IT, AND ONLY IF THE USER SPECIFICALLY REQUESTS IT!!
 -If the user wants to update their settings, respond with 'SETTINGS'
 -If the user wants to update the project they are actively working on/wants to change the autocommit directory, respond with 'UPDATEAUTOCOMMITDIR: dir="directory"'
 -If you want to open a webpage for the user, you MUST first call GHNAME in a separate response to get the username. Once you have received the username from GHNAME, then send OPENPAGE: url="url" username="actual_github_username" (substitute the real username you got from GHNAME — do NOT use the literal text "github username"). Do NOT bundle GHNAME and OPENPAGE in the same response.
