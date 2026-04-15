@@ -4,11 +4,13 @@ from github import Github, GithubException
 from github import Auth
 from pathlib import Path
 import subprocess
+import webbrowser
 console = Console()
 
 possiblecommands = ["EXIT", "READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND",
-                     "AUTHGH", "STATUS", "DIFF", "SETTINGS"]
+                     "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
+                     "CURRPROJ", "UPDATE_AUTOCOMMIT_DIR"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -199,6 +201,23 @@ def update_autocommit_dir(*outs: tuple) -> str:
     if not directory.is_dir():
         raise ValueError(f"{directory} is not a valid directory")
     return directory
+
+def openpage(*outs: tuple) -> str:
+    url = ""
+    for out in outs:
+        if out[0] == "url":
+            url = out[1]
+    if url == "":
+        raise ValueError("Gemini output requires a url parameter")
+    webbrowser.open(url)
+    return f"Opened {url} in web browser"
+
+def ghname(g = Github, *_: tuple) -> str:
+    out = g.get_user()
+    return out.login
+    
+def currproj(*_: tuple) -> str:
+    return
 
 def settings(*_: tuple) -> None:
     file = Path("./settings.txt")

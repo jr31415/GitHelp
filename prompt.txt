@@ -28,8 +28,11 @@ exact file contents here
 -If you want to run 'git status,' respond with 'STATUS: dir="directory"' (do not use RUNCOMMAND)
 -If you want to run 'git diff,' respond with 'DIFF: dir=directory' (do not use RUNCOMMAND)
 -If the user wants to exit, respond with EXIT
--If the user wants to update their settings, respond with SETTINGS
+-If the user wants to update their settings, respond with 'SETTINGS'
 -If the user wants to update the project they are actively working on/wants to change the autocommit directory, respond with 'UPDATEAUTOCOMMITDIR: dir="directory"'
+-If you want to open a webpage for the user, respond with 'OPENPAGE: url="url"', remember that you need to know their github username to open a repo so unless you specifically check for that you will likely get the link wrong
+-If you need to get the username for GitHub, respond with 'GHNAME'
+-If you want to know the working directory for the current project, respond with 'CURRPROJ'
 
 You can do multiple operations in a row, use this to your advantage to understand all the possible situations a user might be in to understand their question or diagnose their problem. You can only do a new command after the last command finishes, the output of the previous command(s) will be provided to you.
 

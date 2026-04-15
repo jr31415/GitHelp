@@ -154,6 +154,15 @@ def main_loop():
                             output = ai_to_commands.update_autocommit_dir(out1, out2, out3)
                             autocommit_loc = output
                             user_response = f"Autocommit directory updated to {autocommit_loc}"
+                        elif command == "OPENPAGE":
+                            output = ai_to_commands.openpage(out1, out2, out3)
+                            user_response = output
+                        elif command == "GHNAME":
+                            output = ai_to_commands.ghname(github, out1, out2, out3)
+                            user_response = output
+                        elif command == "CURRPROJ":
+                            output = ai_to_commands.currproj(github, out1, out2, out3)
+                            user_response = f"Current GitHub project:\n{autocommit_loc}" if autocommit_loc else "No current GitHub project detected."
                         elif command == "SETTINGS":
                             ai_to_commands.settings(out1, out2, out3)
                             rules = init.get_settings()
