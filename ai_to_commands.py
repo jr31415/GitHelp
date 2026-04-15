@@ -17,11 +17,11 @@ def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
         if stripped in possiblecommands:
             aicommand = stripped
         else:
-            raise ValueError("Gemini model output in incorrect format (no command found)")
+            raise ValueError("No command exists in the Gemini output")
     else:
         aicommand = match.group(1)
     if aicommand not in possiblecommands:
-        raise ValueError(f"Gemini model output in incorrect format (invalid command: {aicommand})")
+        raise ValueError(f"Command given does not exist (invalid command: {aicommand})")
     
     matches = re.findall(r'(\w+)="((?:[^"\\]|\\.)*)"', text)
     while len(matches) < 3:
@@ -87,14 +87,11 @@ def repostructonl(g: Github, *outs: tuple) -> str:
 
 def repolist(g: Github, *_) -> str:
     user = g.get_user()
-    repos = list(user.get_repos(type="all"))
-    orgs = list(user.get_orgs())
-    for org in orgs:
-        org_repos = list(org.get_repos(type="all"))
-        for repo in org_repos:
-            if repo not in repos:
-                repos.append(repo)
-    return "\n".join(repo.full_name for repo in repos)
+    repos = {repo.full_name: repo for repo in user.get_repos(type="all")}
+    for org in user.get_orgs():
+        for repo in org.get_repos(type="all"):
+            repos.setdefault(repo.full_name, repo)
+    return "\n".join(repos.keys())
 
 def readloc(*outs: tuple) -> str:
     file = ""

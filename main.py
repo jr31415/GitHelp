@@ -44,6 +44,7 @@ github = init.attempt_login(access_token)
 gemini = genai.Client(api_key=key)
 
 prompt = Path("prompt.txt").read_text()
+autocommit_prompt = Path("autocommitprompt.txt").read_text()
 default_dir = rules.get("defaultgithubdir")
 autocommit_loc = ""
 system_instruction = prompt + f"\n\nUser's default GitHub directory:\"{default_dir}\"" if default_dir else prompt
@@ -199,13 +200,11 @@ def autocommit():
     while not stop_event.is_set():
         time.sleep(60 * autocommit_interval) #default is 30 minutes
         if rules.get("autocommit") and autocommit_loc and Path(autocommit_loc.strip()).is_dir():
-            prompt = Path("autocommitprompt.txt").read_text()
-            new_gemini_instance = genai.Client(api_key=key)
-            autocommit_chat = new_gemini_instance.chats.create(
+            autocommit_chat = gemini.chats.create(
                 model=model,
                 config=types.GenerateContentConfig(
                     thinking_config=types.ThinkingConfig(thinking_level="low"),
-                    system_instruction=prompt
+                    system_instruction=autocommit_prompt
                 )
             )
             diff = subprocess.run(["git", "-C", autocommit_loc.strip(), "diff", "HEAD"], capture_output=True, text=True).stdout
