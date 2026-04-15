@@ -88,7 +88,7 @@ def main_loop():
             processed_text = writeloc_pattern.sub(_extract, response.text.strip())
 
             writeloc_idx = 0
-            lines = [l.strip() for l in processed_text.split('\n') if l.strip()]
+            lines = [s for l in processed_text.split('\n') if (s := l.strip())]
 
             for line in lines:
                 if rules.get("autocommit") and not autocommit_loc:

@@ -126,5 +126,5 @@ def get_settings():
 
         return rules
     else:
-        file.write_text("autorun=FALSE\nautowrite=FALSE\ndefaultgithubdir=\n")
+        file.write_text("autorun=FALSE\nautowrite=FALSE\ndefaultgithubdir=\nautocommit=TRUE")
         return get_settings()

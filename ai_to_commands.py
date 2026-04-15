@@ -220,11 +220,11 @@ def settings(*_: tuple) -> None:
                 else:
                     rules[name_match.group(1)] = val_str
     else:
-        file.write_text("autorun=FALSE\nautowrite=FALSE\ndefaultgithubdir=\n")
+        file.write_text("autorun=FALSE\nautowrite=FALSE\ndefaultgithubdir=\nautocommit=TRUE")
         console.print("Settings file created, reask Githelp about settings to edit settings")
         return
     for setting in rules.keys():
-        if setting == "autorun" or setting == "autowrite" or setting == "debug":
+        if setting in ["autorun", "autowrite", "debug", "autocommit"]:
             newrule = console.input(f"Would you like to enable {setting}? Type \"yes\" or \"no\" (all other inputs will be treated as a no): ")
             if newrule.lower() in ["yes", "yes.", "y"]:
                 console.print(f"{setting} [green]enabled[/green]")
