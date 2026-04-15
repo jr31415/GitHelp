@@ -1,3 +1,4 @@
+import os
 import re
 import time
 import threading
@@ -31,6 +32,9 @@ def send_with_retry(chat, message, max_retries=5):
                 console.print(f"[yellow]Rate limited, retrying in {delay}s...[/yellow]")
                 time.sleep(delay)
                 delay *= 2
+            elif e.code == 500:
+                console.print(f"[red]Internal server error, exiting...[/red]")
+                os._exit(1)
             else:
                 raise
 
@@ -75,11 +79,11 @@ def main_loop():
     MAX_RETRIES = 5
 
     while not stop_event.is_set():
-        user_response = None
         parse_failed = False
 
         for attempt in range(MAX_RETRIES):
             parse_failed = False
+            user_response_parts = []
 
             writeloc_blocks = []
             def _extract(m):
@@ -111,7 +115,7 @@ def main_loop():
                         file_path, reason, content = writeloc_blocks[writeloc_idx]
                         writeloc_idx += 1
                         wrote = ai_to_commands.writeloc_direct(file_path, content, reason, autowrite=rules.get("autowrite"))
-                        user_response = "File written successfully." if wrote else "User denied the file write."
+                        user_response_parts.append("File written successfully." if wrote else "User denied the file write.")
                     else:
                         command, out1, out2, out3 = ai_to_commands.interpret(line)
                         if rules.get("debug"):
@@ -122,54 +126,53 @@ def main_loop():
                             user_input = ""
                             while not user_input:
                                 user_input = ai_to_commands.ask(out1, out2, out3)
-                            user_response = user_input
+                            user_response_parts.append(user_input)
                         elif command == "READONL":
                             result = ai_to_commands.readonl(github, out1, out2, out3)
-                            user_response = f"File contents:\n{result}"
+                            user_response_parts.append(f"File contents:\n{result}")
                         elif command == "REPOSTRUCTONL":
                             result = ai_to_commands.repostructonl(github, out1, out2, out3)
-                            user_response = f"Repo structure:\n{result}"
+                            user_response_parts.append(f"Repo structure:\n{result}")
                         elif command == "REPOLIST":
                             result = ai_to_commands.repolist(github)
-                            user_response = f"Available repos:\n{result}"
+                            user_response_parts.append(f"Available repos:\n{result}")
                         elif command == "READLOC":
                             result = ai_to_commands.readloc(out1, out2, out3)
-                            user_response = f"File contents:\n{result}"
+                            user_response_parts.append(f"File contents:\n{result}")
                         elif command == "STRUCTLOC":
                             result = ai_to_commands.structloc(out1, out2, out3)
-                            user_response = f"Directory structure:\n{result}"
+                            user_response_parts.append(f"Directory structure:\n{result}")
                         elif command == "RUNCOMMAND":
                             output, ran = ai_to_commands.runcommand(out1, out2, out3, autorun=rules.get("autorun"))
-                            user_response = f"Command output:\n{output}" if ran else "User denied the command."
+                            user_response_parts.append(f"Command output:\n{output}" if ran else "User denied the command.")
                         elif command == "AUTHGH":
                             output = ai_to_commands.authgh(out1, out2, out3)
-                            user_response = f"Command output:\n{output}"
+                            user_response_parts.append(f"Command output:\n{output}")
                         elif command == "STATUS":
                             output = ai_to_commands.status(out1, out2, out3)
-                            user_response = f"Command output:\n{output}"
+                            user_response_parts.append(f"Command output:\n{output}")
                         elif command == "DIFF":
                             output = ai_to_commands.diff(out1, out2, out3)
-                            user_response = f"Command output:\n{output}"
+                            user_response_parts.append(f"Command output:\n{output}")
                         elif command == "UPDATEAUTOCOMMITDIR":
                             output = ai_to_commands.update_autocommit_dir(out1, out2, out3)
                             autocommit_loc = output
-                            user_response = f"Autocommit directory updated to {autocommit_loc}"
+                            user_response_parts.append(f"Autocommit directory updated to {autocommit_loc}")
                         elif command == "OPENPAGE":
-                            output = ai_to_commands.openpage(out1, out2, out3)
-                            user_response = output
+                            output = ai_to_commands.openpage(github, out1, out2, out3)
+                            user_response_parts.append(output)
                         elif command == "GHNAME":
                             output = ai_to_commands.ghname(github, out1, out2, out3)
-                            user_response = output
+                            user_response_parts.append(f"GitHub username: {output}")
                         elif command == "CURRPROJ":
-                            output = ai_to_commands.currproj(github, out1, out2, out3)
-                            user_response = f"Current GitHub project:\n{autocommit_loc}" if autocommit_loc else "No current GitHub project detected."
+                            user_response_parts.append(f"Current GitHub project:\n{autocommit_loc}" if autocommit_loc else "No current GitHub project detected.")
                         elif command == "SETTINGS":
                             ai_to_commands.settings(out1, out2, out3)
                             rules = init.get_settings()
                             if default_dir:
-                                user_response = f"User updated their settings, default GitHub directory is now {default_dir} ask them what they want to do next."
+                                user_response_parts.append(f"User updated their settings, default GitHub directory is now {default_dir} ask them what they want to do next.")
                             else:
-                                user_response = f"User updated their settings, ask them what they want to do next."
+                                user_response_parts.append(f"User updated their settings, ask them what they want to do next.")
                         elif command == "EXIT":
                             stop_event.set()
                             break
@@ -179,7 +182,11 @@ def main_loop():
                             break
                 except (ValueError, GithubException) as e:
                     parse_failed = True
-                    response = send_with_retry(chat, f"Command failed: {e}. Please try again.")
+                    prior_results = "\n".join(user_response_parts)
+                    error_msg = f"Command failed: {e}. Please try again."
+                    if prior_results:
+                        error_msg = f"{prior_results}\n{error_msg}"
+                    response = send_with_retry(chat, error_msg)
                     break
 
             if stop_event.is_set() or not parse_failed:
@@ -195,8 +202,8 @@ def main_loop():
 
         if stop_event.is_set():
             os._exit(0)
-            break
 
+        user_response = "\n".join(user_response_parts) if user_response_parts else None
         if user_response:
             user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]")
             if rules.get("debug"):

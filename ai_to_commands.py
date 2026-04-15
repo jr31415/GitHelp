@@ -202,13 +202,22 @@ def update_autocommit_dir(*outs: tuple) -> str:
         raise ValueError(f"{directory} is not a valid directory")
     return directory
 
-def openpage(*outs: tuple) -> str:
+def openpage(g = Github, *outs: tuple) -> str:
     url = ""
+    username = ""
     for out in outs:
         if out[0] == "url":
             url = out[1]
+        if out[0] == "username":
+            username = out[1]
     if url == "":
         raise ValueError("Gemini output requires a url parameter")
+    if username == "":
+        raise ValueError("Gemini output requires a username parameter, rerun this command after running GHNAME")
+    user = g.get_user()
+    if user.login != username:
+        raise ValueError(f"GitHub username provided ({username}) does not match authenticated user ({user.login}), try again with the correct username.")
+
     webbrowser.open(url)
     return f"Opened {url} in web browser"
 
