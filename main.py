@@ -12,7 +12,6 @@ from pathlib import Path
 from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
-import os
 console = Console()
 console.clear()
 
@@ -38,6 +37,11 @@ def send_with_retry(chat, message, max_retries=5):
             else:
                 raise
 
+
+for required_file in ["auth.dat", "api.dat", "prompt.txt", "autocommitprompt.txt"]:
+    if not Path(required_file).is_file():
+        console.print(f"[red]Missing required file: {required_file}[/red]")
+        os._exit(1)
 
 login_details = Path("auth.dat")
 gemini_api = Path("api.dat")
@@ -112,6 +116,10 @@ def main_loop():
                     if line == '__WRITELOC__':
                         if rules.get("debug"):
                             console.print("[bold]ATTEMPT COMMAND: [/bold][yellow]__WRITELOC__[/yellow]")
+                        if writeloc_idx >= len(writeloc_blocks):
+                            user_response_parts.append("Error: mismatched WRITELOC blocks in response.")
+                            parse_failed = True
+                            break
                         file_path, reason, content = writeloc_blocks[writeloc_idx]
                         writeloc_idx += 1
                         wrote = ai_to_commands.writeloc_direct(file_path, content, reason, autowrite=rules.get("autowrite"))
@@ -215,7 +223,8 @@ def main_loop():
 def autocommit():
     while not stop_event.is_set():
         time.sleep(60 * autocommit_interval) #default is 30 minutes
-        if rules.get("autocommit") and autocommit_loc and Path(autocommit_loc.strip()).is_dir():
+        loc = autocommit_loc.strip()
+        if rules.get("autocommit") and loc and Path(loc).is_dir():
             autocommit_chat = gemini.chats.create(
                 model=model,
                 config=types.GenerateContentConfig(
@@ -223,14 +232,14 @@ def autocommit():
                     system_instruction=autocommit_prompt
                 )
             )
-            diff = subprocess.run(["git", "-C", autocommit_loc.strip(), "diff", "HEAD"], capture_output=True, text=True).stdout
+            diff = subprocess.run(["git", "-C", loc, "diff", "HEAD"], capture_output=True, text=True).stdout
             output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n. To approve, respond \"YES\" followed by the commit message, otherwise respond with \"no\" followed by the reason why you aren't commiting.").text
             if rules.get("debug"):
                 console.print(f"[red]Autocommit output[/red]: {output}")
             if output.strip().lower().startswith("yes"):
                 commit_message = output.strip()[4:].strip()
-                subprocess.run(["git", "-C", autocommit_loc.strip(), "add", "."])
-                subprocess.run(["git", "-C", autocommit_loc.strip(), "commit", "-m", commit_message])
+                subprocess.run(["git", "-C", loc, "add", "."])
+                subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
                 console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
             else:
                 console.print("[yellow]Autocommit skipped.[/yellow]")

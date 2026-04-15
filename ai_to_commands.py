@@ -4,6 +4,7 @@ from github import Github, GithubException
 from github import Auth
 from pathlib import Path
 import subprocess
+import shlex
 import webbrowser
 console = Console()
 
@@ -113,7 +114,7 @@ def readloc(*outs: tuple) -> str:
 
 
 def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool = False) -> bool:
-    file = Path(file_path)
+    file = Path(file_path).resolve()
     action = "overwrite" if file.is_file() else "write"
     if not autowrite:
         authorization = console.input(f"Gitpanion is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
@@ -158,7 +159,7 @@ def runcommand(*outs: tuple, autorun: bool = False) -> tuple[str, bool]:
         authorization = "yes"
 
     if authorization.lower() in ("yes", "y", "yes."):
-        out = subprocess.run(command, capture_output=True, text=True, shell=True)
+        out = subprocess.run(shlex.split(command), capture_output=True, text=True)
         return (out.stdout + out.stderr, True)
     else:
         return (None, False)
