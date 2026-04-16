@@ -8,7 +8,7 @@ import shlex
 import webbrowser
 console = Console()
 
-possiblecommands = ["EXIT", "READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
+possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
                      "CURRPROJ", "UPDATE_AUTOCOMMIT_DIR"]

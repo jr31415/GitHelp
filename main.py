@@ -82,7 +82,7 @@ def main_loop():
     response = send_with_retry(chat, "Start")
     MAX_RETRIES = 5
 
-    while not stop_event.is_set():
+    while True:
         parse_failed = False
 
         for attempt in range(MAX_RETRIES):
@@ -104,12 +104,13 @@ def main_loop():
                     while not is_loc:
                         autocommit_loc = console.input("[yellow]Please provide a working directory for your current project to enable autocommit features, or type \"[bold]Ignore[/bold]\" to not enable it for this instance:[/yellow] ").strip()
                         if autocommit_loc.lower() in ["ignore", "i"]:
-                            console.print("[yellow]Autocommit will not be enabled for this instance.[/yellow]")
+                            console.print("[yellow]Autocommit will not be enabled for this instance.[/yellow]\n")
                             break
                         is_loc = Path(autocommit_loc.strip()).is_dir()
                         if not is_loc:
-                            console.print("[red]Provided directory is not valid, please try again.[/red]")
-                    console.print(f"[green]Autocommit enabled for {autocommit_loc}[/green]")
+                            console.print("[red]Provided directory is not valid, please try again.[/red]\n")
+                    if not autocommit_loc.lower() in ["i", "ignore"]:
+                        console.print(f"[green]Autocommit enabled for {autocommit_loc}[/green]\n")
                 if rules.get("debug"):
                     console.print(f"[bold]RECEIVED <- [/bold][orange]{line}[/orange]")
                 try:
@@ -132,8 +133,10 @@ def main_loop():
                             ai_to_commands.text(out1, out2, out3)
                         elif command == "ASK":
                             user_input = ""
-                            while not user_input:
-                                user_input = ai_to_commands.ask(out1, out2, out3)
+                            user_input = ai_to_commands.ask(out1, out2, out3)
+                            if user_input.lower()[12:] in ["exit", "quit", "close", "end", "stop", "exit.", "quit.", "close.", "end.", "stop.",]:
+                                console.print("[yellow]Thank you for using Gitpanion, have a great day![/yellow]")
+                                os._exit(0)
                             user_response_parts.append(user_input)
                         elif command == "READONL":
                             result = ai_to_commands.readonl(github, out1, out2, out3)
@@ -181,13 +184,9 @@ def main_loop():
                                 user_response_parts.append(f"User updated their settings, default GitHub directory is now {default_dir} ask them what they want to do next.")
                             else:
                                 user_response_parts.append(f"User updated their settings, ask them what they want to do next.")
-                        elif command == "EXIT":
-                            stop_event.set()
-                            break
                         else:
                             console.print(f"[yellow]Unhandled command: {command}[/yellow]")
-                            stop_event.set()
-                            break
+                            os._exit(1)
                 except (ValueError, GithubException) as e:
                     parse_failed = True
                     prior_results = "\n".join(user_response_parts)
@@ -197,7 +196,7 @@ def main_loop():
                     response = send_with_retry(chat, error_msg)
                     break
 
-            if stop_event.is_set() or not parse_failed:
+            if not parse_failed:
                 break
 
             if attempt < MAX_RETRIES - 1:
@@ -206,10 +205,8 @@ def main_loop():
                 )
             else:
                 console.print(f"[red]Failed to get a valid response after {MAX_RETRIES} attempts. Exiting.[/red]")
-                stop_event.set()
+                os._exit(1)
 
-        if stop_event.is_set():
-            os._exit(0)
 
         user_response = "\n".join(user_response_parts) if user_response_parts else None
         if user_response:
@@ -221,7 +218,7 @@ def main_loop():
 
 
 def autocommit():
-    while not stop_event.is_set():
+    while True:
         time.sleep(60 * autocommit_interval) #default is 30 minutes
         loc = autocommit_loc.strip()
         if rules.get("autocommit") and loc and Path(loc).is_dir():
