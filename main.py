@@ -58,8 +58,8 @@ autocommit_loc = ""
 system_instruction = prompt + f"\n\nUser's default GitHub directory:\"{default_dir}\"" if default_dir else prompt
 
 if rules.get("debug"):
-    console.print(f"[bold]Settings: [/bold]{rules}")
-    console.print(f"[bold]System Instruction: [/bold]{system_instruction}")
+    console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]Settings: [/bold][yellow]{rules}[/yellow]")
+    console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]System Instruction: [/bold][yellow]{system_instruction}[/yellow]")
 
 
 chat = gemini.chats.create(
@@ -112,11 +112,11 @@ def main_loop():
                     if not autocommit_loc.lower() in ["i", "ignore"]:
                         console.print(f"[green]Autocommit enabled for {autocommit_loc}[/green]\n")
                 if rules.get("debug"):
-                    console.print(f"[bold]RECEIVED <- [/bold][orange]{line}[/orange]")
+                    console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]RECEIVED <- [/bold][orange]{line}[/orange]")
                 try:
                     if line == '__WRITELOC__':
                         if rules.get("debug"):
-                            console.print("[bold]ATTEMPT COMMAND: [/bold][yellow]__WRITELOC__[/yellow]")
+                            console.print("[red][bold][DEBUG]: [/red][/bold][bold]ATTEMPT COMMAND: [/bold][yellow]__WRITELOC__[/yellow]")
                         if writeloc_idx >= len(writeloc_blocks):
                             user_response_parts.append("Error: mismatched WRITELOC blocks in response.")
                             parse_failed = True
@@ -128,7 +128,7 @@ def main_loop():
                     else:
                         command, out1, out2, out3 = ai_to_commands.interpret(line)
                         if rules.get("debug"):
-                            console.print(f"[bold]ATTEMPT COMMAND: [/bold][yellow]{command}[/yellow]")
+                            console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]ATTEMPT COMMAND: [/bold][yellow]{command}[/yellow]\n\n")
                         if command == "TEXT":
                             ai_to_commands.text(out1, out2, out3)
                         elif command == "ASK":
@@ -212,7 +212,7 @@ def main_loop():
         if user_response:
             user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]")
             if rules.get("debug"):
-                console.print(f"[bold]SEND -> [/bold][magenta]{user_response}[/magenta]")
+                console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]SEND -> [/bold][magenta]{user_response}[/magenta]")
         response = send_with_retry(chat, user_response if user_response is not None else "Done")
 
 
@@ -232,7 +232,7 @@ def autocommit():
             diff = subprocess.run(["git", "-C", loc, "diff", "HEAD"], capture_output=True, text=True).stdout
             output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n. To approve, respond \"YES\" followed by the commit message, otherwise respond with \"no\" followed by the reason why you aren't commiting.").text
             if rules.get("debug"):
-                console.print(f"[red]Autocommit output[/red]: {output}")
+                console.print(f"[red][bold][DEBUG]: [/red][/bold][red]Autocommit output[/red]: {output}")
             if output.strip().lower().startswith("yes"):
                 commit_message = output.strip()[4:].strip()
                 subprocess.run(["git", "-C", loc, "add", "."])

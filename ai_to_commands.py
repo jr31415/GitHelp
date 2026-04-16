@@ -11,7 +11,7 @@ console = Console()
 possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
-                     "CURRPROJ", "UPDATE_AUTOCOMMIT_DIR"]
+                     "CURRPROJ", "UPDATEAUTOCOMMITDIR"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -117,7 +117,7 @@ def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool 
     file = Path(file_path).resolve()
     action = "overwrite" if file.is_file() else "write"
     if not autowrite:
-        authorization = console.input(f"Gitpanion is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+        authorization = console.input(f"Gitpanion is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold)yes[/bold]\" to confirm, or anything else to deny: ")
         console.print("\n")
     else:
         authorization = "yes"
@@ -159,7 +159,7 @@ def runcommand(*outs: tuple, autorun: bool = False) -> tuple[str, bool]:
         authorization = "yes"
 
     if authorization.lower() in ("yes", "y", "yes."):
-        out = subprocess.run(shlex.split(command), capture_output=True, text=True)
+        out = subprocess.run(command, capture_output=True, text=True, shell=True)
         return (out.stdout + out.stderr, True)
     else:
         return (None, False)
@@ -201,7 +201,7 @@ def update_autocommit_dir(*outs: tuple) -> str:
         raise ValueError("Gemini output requires a dir parameter")
     if not directory.is_dir():
         raise ValueError(f"{directory} is not a valid directory")
-    return directory
+    return str(directory)
 
 def openpage(g = Github, *outs: tuple) -> str:
     url = ""
@@ -227,7 +227,7 @@ def ghname(g = Github, *_: tuple) -> str:
     return out.login
     
 def currproj(*_: tuple) -> str:
-    return
+    return "Functionality defined in main.py loop"
 
 def settings(*_: tuple) -> None:
     file = Path("./settings.txt")
@@ -283,6 +283,3 @@ def settings(*_: tuple) -> None:
         newrules.append(f"{itm[0]}={itm[1]}")
     
     file.write_text("\n".join(newrules))
-
-
-
