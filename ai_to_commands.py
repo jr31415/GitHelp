@@ -11,7 +11,7 @@ console = Console()
 possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
-                     "CURRPROJ", "UPDATEAUTOCOMMITDIR"]
+                     "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -228,6 +228,23 @@ def ghname(g = Github, *_: tuple) -> str:
     
 def currproj(*_: tuple) -> str:
     return "Functionality defined in main.py loop"
+
+def delete(*outs: tuple) -> str:
+    filepath = ""
+    for out in outs:
+        if out[0] == "path":
+            filepath = Path(out[1])
+    if filepath == "":
+        raise ValueError("Gemini output requires a file parameter")
+    if not filepath.is_file():
+        raise ValueError(f"{filepath} is not a valid file")
+    authorization = console.input(f"Gitpanion is attempting to delete the file at location [blue]{str(filepath)}[/blue]. Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+    console.print("\n")
+    if authorization.lower() in ("yes", "y", "yes."):
+        filepath.unlink()
+        return f"{filepath} deleted successfully"
+    else:
+        return f"User denied deletion of {filepath}"
 
 def settings(*_: tuple) -> None:
     file = Path("./settings.txt")

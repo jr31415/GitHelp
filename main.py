@@ -19,7 +19,11 @@ console.clear()
 model="gemini-3-flash-preview"
 
 rules = init.get_settings()
-autocommit_interval = 30 #default to 30 minutes
+autocommit_interval = 15 #default to 15 minutes
+def debug_out(msg):
+    if rules.get("debug"):
+        console.print(f"[red][bold][DEBUG]: [/red][/bold][yellow]{msg}[/yellow]")
+
 
 def send_with_retry(chat, message, max_retries=5):
     delay = 5
@@ -57,9 +61,8 @@ default_dir = rules.get("defaultgithubdir")
 autocommit_loc = ""
 system_instruction = prompt + f"\n\nUser's default GitHub directory:\"{default_dir}\"" if default_dir else prompt
 
-if rules.get("debug"):
-    console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]Settings: [/bold][yellow]{rules}[/yellow]")
-    console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]System Instruction: [/bold][yellow]{system_instruction}[/yellow]")
+debug_out(f"Settings: {rules}")
+debug_out(f"System Instruction: {system_instruction}")
 
 
 chat = gemini.chats.create(
@@ -111,12 +114,10 @@ def main_loop():
                             console.print("[red]Provided directory is not valid, please try again.[/red]\n")
                     if not autocommit_loc.lower() in ["i", "ignore"]:
                         console.print(f"[green]Autocommit enabled for {autocommit_loc}[/green]\n")
-                if rules.get("debug"):
-                    console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]RECEIVED <- [/bold][orange]{line}[/orange]")
+                debug_out(f"RECEIVED <- {line}")
                 try:
                     if line == '__WRITELOC__':
-                        if rules.get("debug"):
-                            console.print("[red][bold][DEBUG]: [/red][/bold][bold]ATTEMPT COMMAND: [/bold][yellow]__WRITELOC__[/yellow]")
+                        debug_out(f"ATTEMPT COMMAND: __WRITELOC__")
                         if writeloc_idx >= len(writeloc_blocks):
                             user_response_parts.append("Error: mismatched WRITELOC blocks in response.")
                             parse_failed = True
@@ -127,8 +128,7 @@ def main_loop():
                         user_response_parts.append("File written successfully." if wrote else "User denied the file write.")
                     else:
                         command, out1, out2, out3 = ai_to_commands.interpret(line)
-                        if rules.get("debug"):
-                            console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]ATTEMPT COMMAND: [/bold][yellow]{command}[/yellow]\n\n")
+                        debug_out(f"ATTEMPT COMMAND: {command}")
                         if command == "TEXT":
                             ai_to_commands.text(out1, out2, out3)
                         elif command == "ASK":
@@ -211,15 +211,17 @@ def main_loop():
         user_response = "\n".join(user_response_parts) if user_response_parts else None
         if user_response:
             user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]")
-            if rules.get("debug"):
-                console.print(f"[red][bold][DEBUG]: [/red][/bold][bold]SEND -> [/bold][magenta]{user_response}[/magenta]")
+            debug_out(f"SEND -> {user_response}")
         response = send_with_retry(chat, user_response if user_response is not None else "Done")
 
 
 
 def autocommit():
+    avert = False #avert the 15 minute cooldown should the AI want to wait a minute to avoid committing mid-edit, will reset after one loop so it doesn't cause issues if they want to wait multiple times in a row
     while True:
-        time.sleep(60 * autocommit_interval) #default is 30 minutes
+        if not avert:
+            time.sleep(60 * autocommit_interval) #default is 15 minutes
+        avert = False
         loc = autocommit_loc.strip()
         if rules.get("autocommit") and loc and Path(loc).is_dir():
             autocommit_chat = gemini.chats.create(
@@ -230,14 +232,16 @@ def autocommit():
                 )
             )
             diff = subprocess.run(["git", "-C", loc, "diff", "HEAD"], capture_output=True, text=True).stdout
-            output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n. To approve, respond \"YES\" followed by the commit message, otherwise respond with \"no\" followed by the reason why you aren't commiting.").text
-            if rules.get("debug"):
-                console.print(f"[red][bold][DEBUG]: [/red][/bold][red]Autocommit output[/red]: {output}")
+            output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n. To approve (make sure the code will work and the user isn't mid-edit), respond \"YES\" followed by the commit message (just a simple commit message, no long description), respond \"WAIT\" to wait a minute if a user is still mid edit, otherwise respond with \"NO\" followed by the reason why you aren't commiting.").text
+            debug_out(f"Autocommit output: {output}")
             if output.strip().lower().startswith("yes"):
                 commit_message = output.strip()[4:].strip()
                 subprocess.run(["git", "-C", loc, "add", "."])
                 subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
                 console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
+            elif output.strip().lower().startswith("wait"):
+                time.sleep(60) #wait a minute and then check again
+                avert = True
             else:
                 console.print("[yellow]Autocommit skipped.[/yellow]")
 
