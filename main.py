@@ -188,7 +188,11 @@ def main_loop():
                             user_response_parts.append(f"GitHub username: {output}")
                         elif command == "DELETE":
                             output, deleted = ai_to_commands.delete(out1, out2, out3)
-                            user_response_parts.append(f"File deleted successfully." if deleted else "User denied the file deletion.")
+                            user_response_parts.append(f"{output}")
+                        elif command == "THINK":
+                            output = ai_to_commands.think(out1, out2, out3)
+                            user_response_parts.append(f"Thought: {output}")
+                            debug_out(f"AI Thought: {output}")
                         elif command == "CURRPROJ":
                             user_response_parts.append(f"Current GitHub project:\n{autocommit_loc}" if autocommit_loc else "No current GitHub project detected.")
                         elif command == "SETTINGS":

@@ -254,6 +254,15 @@ def delete(*outs: tuple) -> tuple[str, bool]:
         return f"{filepath} deleted successfully", True
     else:
         return f"User denied deletion of {filepath}", False
+    
+def think(*outs: tuple) -> str:
+    thought = ""
+    for out in outs:
+        if out[0] == "text":
+            thought = out[1]
+    if thought == "":
+        raise ValueError("Gemini output requires a thought parameter")
+    return thought
 
 def settings(*_: tuple) -> None:
     file = Path("./settings.txt")
