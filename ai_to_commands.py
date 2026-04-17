@@ -1,5 +1,6 @@
 from rich.console import Console
 import re
+import shutil
 from github import Github, GithubException
 from github import Auth
 from pathlib import Path
@@ -117,7 +118,7 @@ def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool 
     file = Path(file_path).resolve()
     action = "overwrite" if file.is_file() else "write"
     if not autowrite:
-        authorization = console.input(f"Gitpanion is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold)yes[/bold]\" to confirm, or anything else to deny: ")
+        authorization = console.input(f"Gitpanion is attempting to {action} a file at location [blue]{str(file)}[/blue] with the following reason: [green][bold]{reason}[/bold][/green] Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
         console.print("\n")
     else:
         authorization = "yes"
@@ -229,22 +230,27 @@ def ghname(g = Github, *_: tuple) -> str:
 def currproj(*_: tuple) -> str:
     return "Functionality defined in main.py loop"
 
-def delete(*outs: tuple) -> str:
+def delete(*outs: tuple) -> tuple[str, bool]:
     filepath = ""
     for out in outs:
         if out[0] == "path":
             filepath = Path(out[1])
     if filepath == "":
-        raise ValueError("Gemini output requires a file parameter")
-    if not filepath.is_file():
-        raise ValueError(f"{filepath} is not a valid file")
-    authorization = console.input(f"Gitpanion is attempting to delete the file at location [blue]{str(filepath)}[/blue]. Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+        raise ValueError("Gemini output requires a path parameter")
+    if not filepath.exists():
+        raise ValueError(f"{filepath} does not exist")
+    is_dir = filepath.is_dir()
+    kind = "folder" if is_dir else "file"
+    authorization = console.input(f"Gitpanion is attempting to delete the {kind} at location [blue]{str(filepath)}[/blue]. Do you authorize Gitpanion to perform this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
     console.print("\n")
     if authorization.lower() in ("yes", "y", "yes."):
-        filepath.unlink()
-        return f"{filepath} deleted successfully"
+        if is_dir:
+            shutil.rmtree(filepath)
+        else:
+            filepath.unlink()
+        return f"{filepath} deleted successfully", True
     else:
-        return f"User denied deletion of {filepath}"
+        return f"User denied deletion of {filepath}", False
 
 def settings(*_: tuple) -> None:
     file = Path("./settings.txt")

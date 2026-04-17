@@ -22,7 +22,7 @@ rules = init.get_settings()
 autocommit_interval = 15 #default to 15 minutes
 def debug_out(msg):
     if rules.get("debug"):
-        console.print(f"[red][bold][DEBUG]: [/red][/bold][yellow]{msg}[/yellow]")
+        console.print(f"[red][bold][DEBUG]: [/bold][/red][yellow]{msg}[/yellow]")
 
 
 def send_with_retry(chat, message, max_retries=5):
@@ -182,6 +182,9 @@ def main_loop():
                         elif command == "GHNAME":
                             output = ai_to_commands.ghname(github, out1, out2, out3)
                             user_response_parts.append(f"GitHub username: {output}")
+                        elif command == "DELETE":
+                            output, deleted = ai_to_commands.delete(out1, out2, out3)
+                            user_response_parts.append(f"File deleted successfully." if deleted else "User denied the file deletion.")
                         elif command == "CURRPROJ":
                             user_response_parts.append(f"Current GitHub project:\n{autocommit_loc}" if autocommit_loc else "No current GitHub project detected.")
                         elif command == "SETTINGS":
