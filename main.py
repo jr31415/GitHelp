@@ -56,7 +56,14 @@ github = init.attempt_login(access_token)
 gemini = genai.Client(api_key=key)
 
 prompt = Path("prompt.txt").read_text()
-autocommit_prompt = Path("autocommitprompt.txt").read_text()
+autocommitsi = Path("autocommitsi.txt").read_text() if Path("autocommitsi.txt").is_file() else "nosi"
+autocommit_prompt = Path("autocommitprompt.txt").read_text() if Path("autocommitprompt.txt").is_file() else "noprompt"
+
+if autocommit_prompt == "noprompt":
+    raise FileNotFoundError("Missing autocommitprompt.txt, which is required for autcommit features. Please create this file with the appropriate system instruction for autocommits.")
+if autocommitsi == "nosi":
+    raise FileNotFoundError("Missing autocommitsi.txt, which is required for autocommit features. Please create this file with the appropriate system instruction for autocommits.")
+
 default_dir = rules.get("defaultgithubdir")
 autocommit_loc = ""
 system_instruction = prompt + f"\n\nUser's default GitHub directory:\"{default_dir}\"" if default_dir else prompt
@@ -227,12 +234,12 @@ def autocommit():
             autocommit_chat = gemini.chats.create(
                 model=model,
                 config=types.GenerateContentConfig(
-                    thinking_config=types.ThinkingConfig(thinking_level="low"),
-                    system_instruction=autocommit_prompt
+                    thinking_config=types.ThinkingConfig(thinking_level="high"),
+                    system_instruction=autocommitsi
                 )
             )
             diff = subprocess.run(["git", "-C", loc, "diff", "HEAD"], capture_output=True, text=True).stdout
-            output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n. To approve (make sure the code will work and the user isn't mid-edit), respond \"YES\" followed by the commit message (just a simple commit message, no long description), respond \"WAIT\" to wait a minute if a user is still mid edit, otherwise respond with \"NO\" followed by the reason why you aren't commiting.").text
+            output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n{autocommit_prompt}").text
             debug_out(f"Autocommit output: {output}")
             if output.strip().lower().startswith("yes"):
                 commit_message = output.strip()[4:].strip()
@@ -242,9 +249,9 @@ def autocommit():
             elif output.strip().lower().startswith("wait"):
                 time.sleep(60) #wait a minute and then check again
                 avert = True
+                debug_out("Autocommit delayed")
             else:
-                console.print("[yellow]Autocommit skipped.[/yellow]")
-
+                debug_out(f"Autocommit denied")
 
 autocommit_thread = threading.Thread(target=autocommit, name="autocommit", daemon=True)
 
