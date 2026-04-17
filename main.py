@@ -243,7 +243,7 @@ def autocommit():
             autocommit_chat = gemini.chats.create(
                 model=model,
                 config=types.GenerateContentConfig(
-                    thinking_config=types.ThinkingConfig(thinking_level="high"),
+                    thinking_config=types.ThinkingConfig(thinking_level="low"),
                     system_instruction=autocommitsi
                 )
             )
