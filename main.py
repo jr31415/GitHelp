@@ -22,7 +22,11 @@ rules = init.get_settings()
 autocommit_interval = 15 #default to 15 minutes
 def debug_out(msg):
     if rules.get("debug"):
-        console.print(f"[red][bold][DEBUG]: [/bold][/red][yellow]{msg}[/yellow]")
+        try:
+            console.print(f"[red][bold][DEBUG]: [/bold][/red][yellow]{msg}[/yellow]")
+        except: #fallback specifically if there is text in output that would cause rich console to raise an exception, such as [/bold] in a file without a preceeding [bold]
+            print(f"[DEBUG]: {msg}")
+            console.print("\n\n[red][bold][DEBUG]: [/bold][/red][yellow][italic]Fallback print statement used -- check files that Gitpanion is reading for rich markup errors![/italic][/yellow]\n\n")
 
 
 def send_with_retry(chat, message, max_retries=5):
