@@ -194,8 +194,9 @@ def main_loop():
                         elif command == "SETTINGS":
                             ai_to_commands.settings(out1, out2, out3)
                             rules = init.get_settings()
-                            if default_dir:
-                                user_response_parts.append(f"User updated their settings, default GitHub directory is now {default_dir} ask them what they want to do next.")
+                            new_default_dir = rules.get("defaultgithubdir")
+                            if new_default_dir:
+                                user_response_parts.append(f"User updated their settings, default GitHub directory is now {new_default_dir} ask them what they want to do next.")
                             else:
                                 user_response_parts.append(f"User updated their settings, ask them what they want to do next.")
                         else:
@@ -215,7 +216,7 @@ def main_loop():
 
             if attempt < MAX_RETRIES - 1:
                 response = send_with_retry(chat,
-                    "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, or DIFF."
+                    "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, DIFF, DELETE, SETTINGS, OPENPAGE, GHNAME, CURRPROJ, or UPDATEAUTOCOMMITDIR."
                 )
             else:
                 console.print(f"[red]Failed to get a valid response after {MAX_RETRIES} attempts. Exiting.[/red]")

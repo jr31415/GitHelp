@@ -23,7 +23,7 @@ def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
         else:
             raise ValueError("No command exists in the Gemini output")
     else:
-        aicommand = match.group(1)
+        aicommand = match.group(1).strip()
     if aicommand not in possiblecommands:
         raise ValueError(f"Command given does not exist (invalid command: {aicommand})")
     
@@ -104,7 +104,9 @@ def readloc(*outs: tuple) -> str:
             file = Path(out[1])
     if file == "":
         raise ValueError("Gemini output requires a file parameter")
-    
+    if not file.exists():
+        raise ValueError(f"{file} does not exist")
+
     try: #function will return text if able, else will return binary
         output = file.read_text()
     except Exception:
@@ -123,6 +125,7 @@ def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool 
     else:
         authorization = "yes"
     if authorization.lower() in ("yes", "y", "yes."):
+        file.parent.mkdir(parents=True, exist_ok=True)
         file.write_text(contents)
         return True
     else:
