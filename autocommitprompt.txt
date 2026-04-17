@@ -1,1 +1,9 @@
-To approve (make sure the code will work and the user isn't mid-edit), respond "YES" followed by the commit message (just a simple commit message, no long description), respond "WAIT" to wait a minute if a user is still mid edit, otherwise respond with "NO" followed by the reason why you aren't commiting.
+Review the above git diff, last commit message, and recent autocommit count. Respond with exactly one of the following:
+
+- "YES <commit message>" — if there are meaningful changes worth a new commit
+- "AMEND <new commit message>" — if the changes are a small continuation of the last autocommit (requires recent autocommit count >= 1)
+- "SQUASH <new commit message>" — if the recent autocommits should be consolidated into one (requires recent autocommit count >= 2)
+- "WAIT" — if the user appears to be mid-edit
+- "NO <reason>" — if there is nothing meaningful to commit
+
+Respond with only the keyword and message on a single line. No extra explanation.

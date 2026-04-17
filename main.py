@@ -225,6 +225,7 @@ def main_loop():
 
 def autocommit():
     avert = False #avert the 15 minute cooldown should the AI want to wait a minute to avoid committing mid-edit, will reset after one loop so it doesn't cause issues if they want to wait multiple times in a row
+    autocommit_shas = [] # track consecutive autocommit SHAs (for amend/squash eligibility)
     while True:
         if not avert:
             time.sleep(60 * autocommit_interval) #default is 15 minutes
@@ -239,14 +240,87 @@ def autocommit():
                 )
             )
             diff = subprocess.run(["git", "-C", loc, "diff", "HEAD"], capture_output=True, text=True).stdout
-            output = send_with_retry(autocommit_chat, f"The following is the Git diff:\n{diff}\n\n{autocommit_prompt}").text
+            last_commit_msg = subprocess.run(["git", "-C", loc, "log", "-1", "--format=%s"], capture_output=True, text=True).stdout.strip()
+            current_head = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+
+            # Validate tracked SHAs are still in git history (user may have rebased/reset)
+            if autocommit_shas:
+                history = subprocess.run(
+                    ["git", "-C", loc, "log", "--format=%H", f"-{len(autocommit_shas) + 5}"],
+                    capture_output=True, text=True
+                ).stdout.strip().split()
+                autocommit_shas = [sha for sha in autocommit_shas if sha in history]
+
+            can_amend = bool(autocommit_shas) and current_head == autocommit_shas[-1]
+            can_squash = len(autocommit_shas) >= 2 and current_head == autocommit_shas[-1]
+
+            context = (
+                f"The following is the Git diff:\n{diff}\n\n"
+                f"Last commit message: {last_commit_msg}\n"
+                f"Recent autocommit count: {len(autocommit_shas)}"
+            )
+            output = send_with_retry(autocommit_chat, f"{context}\n\n{autocommit_prompt}").text
             debug_out(f"Autocommit output: {output}")
-            if output.strip().lower().startswith("yes"):
-                commit_message = output.strip()[4:].strip()
-                subprocess.run(["git", "-C", loc, "add", "."])
-                subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
-                console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
-            elif output.strip().lower().startswith("wait"):
+
+            stripped = output.strip()
+            lower = stripped.lower()
+            parts = stripped.split(None, 1)
+            commit_message = parts[1].strip() if len(parts) > 1 else ""
+
+            if lower.startswith("yes"):
+                if commit_message:
+                    subprocess.run(["git", "-C", loc, "add", "."])
+                    result = subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
+                    if result.returncode == 0:
+                        new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+                        autocommit_shas.append(new_sha)
+                        console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
+                    else:
+                        console.print(f"[red]Autocommit failed[/red]")
+
+            elif lower.startswith("amend"):
+                if can_amend and commit_message:
+                    subprocess.run(["git", "-C", loc, "add", "."])
+                    result = subprocess.run(["git", "-C", loc, "commit", "--amend", "-m", commit_message])
+                    if result.returncode == 0:
+                        new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+                        autocommit_shas[-1] = new_sha
+                        console.print(f"[green]Autocommit amended with message:[/green] [bold]{commit_message}[/bold]")
+                    else:
+                        console.print(f"[red]Autocommit amend failed[/red]")
+                elif commit_message:
+                    # Amend not eligible (last commit wasn't an autocommit), fall back to new commit
+                    debug_out("Amend requested but not eligible, falling back to new commit")
+                    subprocess.run(["git", "-C", loc, "add", "."])
+                    result = subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
+                    if result.returncode == 0:
+                        new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+                        autocommit_shas.append(new_sha)
+                        console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
+
+            elif lower.startswith("squash"):
+                if can_squash and commit_message:
+                    n = len(autocommit_shas)
+                    subprocess.run(["git", "-C", loc, "add", "."])
+                    subprocess.run(["git", "-C", loc, "reset", "--soft", f"HEAD~{n}"])
+                    result = subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
+                    if result.returncode == 0:
+                        new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+                        autocommit_shas = [new_sha]
+                        console.print(f"[green]Autocommit squashed {n} commits with message:[/green] [bold]{commit_message}[/bold]")
+                    else:
+                        console.print(f"[red]Autocommit squash failed[/red]")
+                elif commit_message:
+                    # Squash not eligible (fewer than 2 autocommits), fall back to new commit
+                    debug_out("Squash requested but not eligible, falling back to new commit")
+                    subprocess.run(["git", "-C", loc, "add", "."])
+                    result = subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
+                    if result.returncode == 0:
+                        new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+                        autocommit_shas.append(new_sha)
+                        console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
+
+            elif lower.startswith("wait"):
                 time.sleep(60) #wait a minute and then check again
                 avert = True
                 debug_out("Autocommit delayed")
