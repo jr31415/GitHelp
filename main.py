@@ -229,7 +229,7 @@ def main_loop():
 
         user_response = "\n".join(user_response_parts) if user_response_parts else None
         if user_response:
-            user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]")
+            user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]").replace(key, "[REDACTED]gemini api key[REDACTED]")
             debug_out(f"SEND -> {user_response}")
         response = send_with_retry(chat, user_response if user_response is not None else "Done")
 
