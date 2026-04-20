@@ -24,7 +24,7 @@ def debug_out(msg):
     if rules.get("debug"):
         try:
             console.print(f"[red][bold][DEBUG]: [/bold][/red][yellow]{msg}[/yellow]")
-        except: #fallback specifically if there is text in output that would cause rich console to raise an exception, such as [/bold] in a file without a preceeding [bold]
+        except Exception: #fallback specifically if there is text in output that would cause rich console to raise an exception, such as [/bold] in a file without a preceeding [bold]
             print(f"[DEBUG]: {msg}")
             console.print("\n\n[red][bold][DEBUG]: [/bold][/red][yellow][italic]Fallback print statement used -- check files that Gitpanion is reading for rich markup errors![/italic][/yellow]\n\n")
 
@@ -195,6 +195,39 @@ def main_loop():
                             debug_out(f"AI Thought: {output}")
                         elif command == "CURRPROJ":
                             user_response_parts.append(f"Current GitHub project:\n{autocommit_loc}" if autocommit_loc else "No current GitHub project detected.")
+                        elif command == "CURRENTDIR":
+                            output = ai_to_commands.currentdir()
+                            user_response_parts.append(f"Current working directory: {output}")
+                        elif command == "NEWBRANCH":
+                            if not autocommit_loc:
+                                user_response_parts.append("No current project set. Please activate a project first.")
+                            else:
+                                output = ai_to_commands.newbranch(autocommit_loc, out1, out2, out3)
+                                user_response_parts.append(f"Command output:\n{output}")
+                        elif command == "LISTBRANCHES":
+                            if not autocommit_loc:
+                                user_response_parts.append("No current project set. Please activate a project first.")
+                            else:
+                                output = ai_to_commands.listbranches(autocommit_loc)
+                                user_response_parts.append(f"Branches:\n{output}")
+                        elif command == "SWITCHBRANCH":
+                            if not autocommit_loc:
+                                user_response_parts.append("No current project set. Please activate a project first.")
+                            else:
+                                output = ai_to_commands.switchbranch(autocommit_loc, out1, out2, out3)
+                                user_response_parts.append(f"Command output:\n{output}")
+                        elif command == "MERGE":
+                            if not autocommit_loc:
+                                user_response_parts.append("No current project set. Please activate a project first.")
+                            else:
+                                output = ai_to_commands.merge(autocommit_loc, out1, out2, out3)
+                                user_response_parts.append(f"Command output:\n{output}")
+                        elif command == "PR":
+                            if not autocommit_loc:
+                                user_response_parts.append("No current project set. Please activate a project first.")
+                            else:
+                                output = ai_to_commands.pr(autocommit_loc, out1, out2, out3)
+                                user_response_parts.append(f"Command output:\n{output}")
                         elif command == "SETTINGS":
                             ai_to_commands.settings(out1, out2, out3)
                             rules = init.get_settings()
@@ -220,7 +253,7 @@ def main_loop():
 
             if attempt < MAX_RETRIES - 1:
                 response = send_with_retry(chat,
-                    "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, DIFF, DELETE, SETTINGS, OPENPAGE, GHNAME, CURRPROJ, or UPDATEAUTOCOMMITDIR."
+                    "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, DIFF, DELETE, SETTINGS, OPENPAGE, GHNAME, CURRPROJ, UPDATEAUTOCOMMITDIR, THINK, CURRENTDIR, NEWBRANCH, LISTBRANCHES, SWITCHBRANCH, MERGE, or PR."
                 )
             else:
                 console.print(f"[red]Failed to get a valid response after {MAX_RETRIES} attempts. Exiting.[/red]")
@@ -281,7 +314,10 @@ def autocommit():
 
             if lower.startswith("yes"):
                 if commit_message:
-                    subprocess.run(["git", "-C", loc, "add", "."])
+                    add_result = subprocess.run(["git", "-C", loc, "add", "."])
+                    if add_result.returncode != 0:
+                        console.print(f"[red]Autocommit failed: git add failed[/red]")
+                        continue
                     result = subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -292,7 +328,10 @@ def autocommit():
 
             elif lower.startswith("amend"):
                 if can_amend and commit_message:
-                    subprocess.run(["git", "-C", loc, "add", "."])
+                    add_result = subprocess.run(["git", "-C", loc, "add", "."])
+                    if add_result.returncode != 0:
+                        console.print(f"[red]Autocommit amend failed: git add failed[/red]")
+                        continue
                     result = subprocess.run(["git", "-C", loc, "commit", "--amend", "-m", commit_message])
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -303,7 +342,10 @@ def autocommit():
                 elif commit_message:
                     # Amend not eligible (last commit wasn't an autocommit), fall back to new commit
                     debug_out("Amend requested but not eligible, falling back to new commit")
-                    subprocess.run(["git", "-C", loc, "add", "."])
+                    add_result = subprocess.run(["git", "-C", loc, "add", "."])
+                    if add_result.returncode != 0:
+                        console.print(f"[red]Autocommit failed: git add failed[/red]")
+                        continue
                     result = subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -313,8 +355,14 @@ def autocommit():
             elif lower.startswith("squash"):
                 if can_squash and commit_message:
                     n = len(autocommit_shas)
-                    subprocess.run(["git", "-C", loc, "add", "."])
-                    subprocess.run(["git", "-C", loc, "reset", "--soft", f"HEAD~{n}"])
+                    add_result = subprocess.run(["git", "-C", loc, "add", "."])
+                    if add_result.returncode != 0:
+                        console.print(f"[red]Autocommit squash failed: git add failed[/red]")
+                        continue
+                    reset_result = subprocess.run(["git", "-C", loc, "reset", "--soft", f"HEAD~{n}"])
+                    if reset_result.returncode != 0:
+                        console.print(f"[red]Autocommit squash failed: git reset failed[/red]")
+                        continue
                     result = subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -325,7 +373,10 @@ def autocommit():
                 elif commit_message:
                     # Squash not eligible (fewer than 2 autocommits), fall back to new commit
                     debug_out("Squash requested but not eligible, falling back to new commit")
-                    subprocess.run(["git", "-C", loc, "add", "."])
+                    add_result = subprocess.run(["git", "-C", loc, "add", "."])
+                    if add_result.returncode != 0:
+                        console.print(f"[red]Autocommit failed: git add failed[/red]")
+                        continue
                     result = subprocess.run(["git", "-C", loc, "commit", "-m", commit_message])
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -337,7 +388,7 @@ def autocommit():
                 avert = True
                 debug_out("Autocommit delayed")
             else:
-                debug_out(f"Autocommit denied")
+                debug_out("Autocommit denied")
 
 autocommit_thread = threading.Thread(target=autocommit, name="autocommit", daemon=True)
 
