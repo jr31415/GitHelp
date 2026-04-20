@@ -14,7 +14,7 @@ possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
                      "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE", "THINK",
                      "CURRENTDIR", "NEWBRANCH", "LISTBRANCHES", "SWITCHBRANCH",
-                     "MERGE", "PR"]
+                     "MERGE", "PR", "PUSH"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -307,6 +307,20 @@ def merge(loc: str, *outs: tuple) -> str:
     if branch == "":
         raise ValueError("Gemini output requires a branch parameter")
     out = subprocess.run(["git", "-C", loc, "merge", branch], capture_output=True, text=True)
+    return out.stdout + out.stderr
+
+def push(loc: str, *outs: tuple) -> str:
+    remote = "origin"
+    branch = ""
+    for out in outs:
+        if out[0] == "remote":
+            remote = out[1]
+        elif out[0] == "branch":
+            branch = out[1]
+    cmd = ["git", "-C", loc, "push", remote]
+    if branch:
+        cmd.append(branch)
+    out = subprocess.run(cmd, capture_output=True, text=True)
     return out.stdout + out.stderr
 
 def pr(loc: str, *outs: tuple) -> str:

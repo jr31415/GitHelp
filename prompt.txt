@@ -39,6 +39,7 @@ exact file contents here
 -If you want to switch to an existing branch, this command can only be done after activating a current project, respond with 'SWITCHBRANCH: branch="branchname"'
 -If you want to merge another branch into the current branch of the active project, this command can only be done after activating a current project, respond with 'MERGE: branch="name of branch whose changes you want to merge in"'
 -If you want to make a pull request, this command can only be done after activating a current project, respond with 'PR: branch="name of the source branch for the PR" title="pr title" body="pr description"'
+-If you want to push commits to a remote, this command can only be done after activating a current project, respond with 'PUSH: remote="origin" branch="branchname"' (remote defaults to "origin" and branch defaults to the current branch if omitted)
 
 If the user specifically instructs you to quit, tell them that they have to simply put "exit" by itself, and let them input text using the ASK command.
 

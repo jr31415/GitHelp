@@ -223,6 +223,12 @@ def main_loop():
                             else:
                                 output = ai_to_commands.merge(autocommit_loc, out1, out2, out3)
                                 user_response_parts.append(f"Command output:\n{output}")
+                        elif command == "PUSH":
+                            if not autocommit_loc:
+                                user_response_parts.append("No current project set. Please activate a project first.")
+                            else:
+                                output = ai_to_commands.push(autocommit_loc, out1, out2, out3)
+                                user_response_parts.append(f"Command output:\n{output}")
                         elif command == "PR":
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
@@ -254,7 +260,7 @@ def main_loop():
 
             if attempt < MAX_RETRIES - 1:
                 response = send_with_retry(chat,
-                    "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, DIFF, DELETE, SETTINGS, OPENPAGE, GHNAME, CURRPROJ, UPDATEAUTOCOMMITDIR, THINK, CURRENTDIR, NEWBRANCH, LISTBRANCHES, SWITCHBRANCH, MERGE, or PR."
+                    "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, DIFF, DELETE, SETTINGS, OPENPAGE, GHNAME, CURRPROJ, UPDATEAUTOCOMMITDIR, THINK, CURRENTDIR, NEWBRANCH, LISTBRANCHES, SWITCHBRANCH, MERGE, PR, or PUSH."
                 )
             else:
                 console.print(f"[red]Failed to get a valid response after {MAX_RETRIES} attempts. Exiting.[/red]")
