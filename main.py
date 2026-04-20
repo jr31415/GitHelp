@@ -55,6 +55,7 @@ login_details = Path("auth.dat")
 gemini_api = Path("api.dat")
 access_token = login_details.read_text().strip()
 key = gemini_api.read_text().strip()
+os.environ["GH_TOKEN"] = access_token  # lets gh CLI authenticate without writing config files
 
 github = init.attempt_login(access_token)
 gemini = genai.Client(api_key=key)
