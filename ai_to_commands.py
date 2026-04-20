@@ -12,7 +12,7 @@ console = Console()
 possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
-                     "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE"]
+                     "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE", "THINK"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
