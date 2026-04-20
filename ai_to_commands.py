@@ -171,7 +171,7 @@ def runcommand(*outs: tuple, autorun: bool = False) -> tuple[str, bool]:
         return (None, False)
     
 def authgh(*_: tuple) -> str:
-    out = subprocess.run("gh auth login --with-token < ./auth.dat", capture_output=True, text=True, shell=True)
+    out = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True)
     return out.stdout + out.stderr
 
 def status(*outs: tuple) -> str:
