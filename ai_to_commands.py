@@ -1,18 +1,20 @@
 from rich.console import Console
+import os
 import re
 import shutil
 from github import Github, GithubException
 from github import Auth
 from pathlib import Path
 import subprocess
-import shlex
 import webbrowser
 console = Console()
 
 possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
-                     "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE", "THINK"]
+                     "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE", "THINK",
+                     "CURRENTDIR", "NEWBRANCH", "LISTBRANCHES", "SWITCHBRANCH",
+                     "MERGE", "PR"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -263,6 +265,66 @@ def think(*outs: tuple) -> str:
     if thought == "":
         raise ValueError("Gemini output requires a thought parameter")
     return thought
+
+def currentdir() -> str:
+    return os.getcwd()
+
+def newbranch(loc: str, *outs: tuple) -> str:
+    branch = ""
+    for out in outs:
+        if out[0] == "branch":
+            branch = out[1]
+    if branch == "":
+        raise ValueError("Gemini output requires a branch parameter")
+    out = subprocess.run(["git", "-C", loc, "checkout", "-b", branch], capture_output=True, text=True)
+    if out.returncode != 0:
+        raise ValueError(f"Failed to create branch: {out.stderr.strip()}")
+    return out.stdout + out.stderr
+
+def listbranches(loc: str) -> str:
+    out = subprocess.run(["git", "-C", loc, "branch", "-a"], capture_output=True, text=True)
+    if out.returncode != 0:
+        raise ValueError(f"Failed to list branches: {out.stderr.strip()}")
+    return out.stdout + out.stderr
+
+def switchbranch(loc: str, *outs: tuple) -> str:
+    branch = ""
+    for out in outs:
+        if out[0] == "branch":
+            branch = out[1]
+    if branch == "":
+        raise ValueError("Gemini output requires a branch parameter")
+    out = subprocess.run(["git", "-C", loc, "checkout", branch], capture_output=True, text=True)
+    if out.returncode != 0:
+        raise ValueError(f"Failed to switch branch: {out.stderr.strip()}")
+    return out.stdout + out.stderr
+
+def merge(loc: str, *outs: tuple) -> str:
+    branch = ""
+    for out in outs:
+        if out[0] == "branch":
+            branch = out[1]
+    if branch == "":
+        raise ValueError("Gemini output requires a branch parameter")
+    out = subprocess.run(["git", "-C", loc, "merge", branch], capture_output=True, text=True)
+    return out.stdout + out.stderr
+
+def pr(loc: str, *outs: tuple) -> str:
+    branch, title, body = "", "", ""
+    for out in outs:
+        if out[0] == "branch":
+            branch = out[1]
+        elif out[0] == "title":
+            title = out[1]
+        elif out[0] == "body":
+            body = out[1]
+    if branch == "" or title == "":
+        raise ValueError("Gemini output requires branch and title parameters")
+    out = subprocess.run(
+        ["gh", "pr", "create", "--head", branch, "--title", title, "--body", body],
+        capture_output=True, text=True, cwd=loc
+    )
+    return out.stdout + out.stderr
 
 def settings(*_: tuple) -> None:
     file = Path("./settings.txt")
