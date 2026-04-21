@@ -2,8 +2,7 @@ from rich.console import Console
 import os
 import re
 import shutil
-from github import Github, GithubException
-from github import Auth
+from github import Github
 from pathlib import Path
 import subprocess
 import webbrowser
@@ -14,7 +13,7 @@ possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
                      "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE", "THINK",
                      "CURRENTDIR", "NEWBRANCH", "LISTBRANCHES", "SWITCHBRANCH",
-                     "MERGE", "PR", "PUSH"]
+                     "MERGE", "PR", "PUSH", "COMMIT"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -309,6 +308,19 @@ def merge(loc: str, *outs: tuple) -> str:
     out = subprocess.run(["git", "-C", loc, "merge", branch], capture_output=True, text=True)
     return out.stdout + out.stderr
 
+def commit(loc: str, *outs: tuple) -> str:
+    message = ""
+    for out in outs:
+        if out[0] == "message":
+            message = out[1]
+    if message == "":
+        raise ValueError("Gemini output requires a message parameter")
+    out = subprocess.run(["git", "-C", loc, "add", "."], capture_output=True, text=True)
+    if out.returncode != 0:
+        raise ValueError(f"Failed to stage changes: {out.stderr.strip()}")
+    out = subprocess.run(["git", "-C", loc, "commit", "-m", message], capture_output=True, text=True)
+    return out.stdout + out.stderr
+
 def push(loc: str, *outs: tuple) -> str:
     remote = "origin"
     branch = ""
@@ -320,6 +332,11 @@ def push(loc: str, *outs: tuple) -> str:
     cmd = ["git", "-C", loc, "push", remote]
     if branch:
         cmd.append(branch)
+    label = f"git push {remote}" + (f" {branch}" if branch else "")
+    authorization = console.input(f"Gitpanion is attempting to push: [blue]{label}[/blue] Do you authorize this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+    console.print("\n")
+    if authorization.lower() not in ("yes", "y", "yes."):
+        return None
     out = subprocess.run(cmd, capture_output=True, text=True)
     return out.stdout + out.stderr
 

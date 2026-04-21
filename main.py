@@ -6,8 +6,7 @@ import subprocess
 import init
 import ai_to_commands
 from rich.console import Console
-from github import Github, GithubException
-from github import Auth
+from github import GithubException
 from pathlib import Path
 from google import genai
 from google.genai import types
@@ -188,7 +187,7 @@ def main_loop():
                             output = ai_to_commands.ghname(github, out1, out2, out3)
                             user_response_parts.append(f"GitHub username: {output}")
                         elif command == "DELETE":
-                            output, deleted = ai_to_commands.delete(out1, out2, out3)
+                            output, _ = ai_to_commands.delete(out1, out2, out3)
                             user_response_parts.append(f"{output}")
                         elif command == "THINK":
                             output = ai_to_commands.think(out1, out2, out3)
@@ -223,12 +222,18 @@ def main_loop():
                             else:
                                 output = ai_to_commands.merge(autocommit_loc, out1, out2, out3)
                                 user_response_parts.append(f"Command output:\n{output}")
+                        elif command == "COMMIT":
+                            if not autocommit_loc:
+                                user_response_parts.append("No current project set. Please activate a project first.")
+                            else:
+                                output = ai_to_commands.commit(autocommit_loc, out1, out2, out3)
+                                user_response_parts.append(f"Command output:\n{output}")
                         elif command == "PUSH":
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
                                 output = ai_to_commands.push(autocommit_loc, out1, out2, out3)
-                                user_response_parts.append(f"Command output:\n{output}")
+                                user_response_parts.append(f"Command output:\n{output}" if output is not None else "User denied the push.")
                         elif command == "PR":
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
@@ -260,7 +265,7 @@ def main_loop():
 
             if attempt < MAX_RETRIES - 1:
                 response = send_with_retry(chat,
-                    "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, DIFF, DELETE, SETTINGS, OPENPAGE, GHNAME, CURRPROJ, UPDATEAUTOCOMMITDIR, THINK, CURRENTDIR, NEWBRANCH, LISTBRANCHES, SWITCHBRANCH, MERGE, PR, or PUSH."
+                    "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, DIFF, DELETE, SETTINGS, OPENPAGE, GHNAME, CURRPROJ, UPDATEAUTOCOMMITDIR, THINK, CURRENTDIR, NEWBRANCH, LISTBRANCHES, SWITCHBRANCH, MERGE, PR, PUSH, or COMMIT."
                 )
             else:
                 console.print(f"[red]Failed to get a valid response after {MAX_RETRIES} attempts. Exiting.[/red]")
