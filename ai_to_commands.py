@@ -16,6 +16,7 @@ possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "MERGE", "PR", "PUSH", "COMMIT", "REBASE"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
+    """Parse a line of AI output into (command, out1, out2, out3) where each out is a (param_name, value) tuple."""
     match = re.match(r"([^:]+):", text)
     if match is None:
         stripped = text.strip()
@@ -118,6 +119,7 @@ def readloc(*outs: tuple) -> str:
 
 
 def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool = False) -> bool:
+    """Write contents to a file, prompting the user for confirmation unless autowrite=True (set by the autowrite setting)."""
     file = Path(file_path).resolve()
     action = "overwrite" if file.is_file() else "write"
     if not autowrite:
@@ -149,6 +151,7 @@ def structloc(*outs: tuple) -> str:
     return loc
 
 def runcommand(*outs: tuple, autorun: bool = False) -> tuple[str, bool]:
+    """Run an arbitrary shell command after user confirmation; returns (output, ran). shell=True is intentional — the AI may produce pipes, redirects, or compound commands."""
     command, reason = "", ""
     for out in outs:
         if out[0] == "command":
@@ -322,6 +325,7 @@ def commit(loc: str, *outs: tuple) -> str:
     return out.stdout + out.stderr
 
 def rebase(loc: str, *outs: tuple) -> str:
+    """Non-interactively rebase onto a branch/commit; with upstream, uses --onto for grafting. Auto-aborts on conflict to avoid leaving the repo in a mid-rebase state."""
     onto, upstream = "", ""
     for out in outs:
         if out[0] == "onto":
@@ -341,6 +345,7 @@ def rebase(loc: str, *outs: tuple) -> str:
     return out.stdout + out.stderr
 
 def push(loc: str, *outs: tuple) -> str:
+    """Push to a remote after user confirmation; returns None if denied."""
     remote = "origin"
     branch = ""
     for out in outs:
@@ -360,6 +365,7 @@ def push(loc: str, *outs: tuple) -> str:
     return out.stdout + out.stderr
 
 def pr(loc: str, *outs: tuple) -> str:
+    """Create a pull request via gh CLI using the GH_TOKEN env var set at startup; runs from within the project directory."""
     branch, title, body = "", "", ""
     for out in outs:
         if out[0] == "branch":
@@ -377,6 +383,7 @@ def pr(loc: str, *outs: tuple) -> str:
     return out.stdout + out.stderr
 
 def settings(*_: tuple) -> None:
+    """Interactively walk the user through toggling each setting in settings.txt; creates the file with defaults if it doesn't exist."""
     file = Path("./settings.txt")
     if file.is_file():
         settings = file.read_text().split("\n")

@@ -43,6 +43,7 @@ else:
     console.print("[green]GitHub CLI is already installed.[/green]")
 
 def attempt_login(access_token: str) -> Github:
+    """Return an authenticated Github client; authentication is lazy and won't raise until the first API call."""
     auth = Auth.Token(access_token)
     g = Github(auth=auth)
     
@@ -104,7 +105,8 @@ while not success:
         console.print("[red]Authentication failed, please enter Gemini API key[/red]")
         key = console.input("Gemini API key: ")
 
-def get_settings() -> None:
+def get_settings() -> dict:
+    """Parse settings.txt into a dict; creates the file with defaults and recurses once if it doesn't exist."""
     file = Path("./settings.txt")
     if file.is_file():
         settings = file.read_text().split("\n")
