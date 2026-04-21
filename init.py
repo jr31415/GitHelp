@@ -104,7 +104,7 @@ while not success:
         console.print("[red]Authentication failed, please enter Gemini API key[/red]")
         key = console.input("Gemini API key: ")
 
-def get_settings():
+def get_settings() -> None:
     file = Path("./settings.txt")
     if file.is_file():
         settings = file.read_text().split("\n")

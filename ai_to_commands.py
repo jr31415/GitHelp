@@ -90,7 +90,7 @@ def repostructonl(g: Github, *outs: tuple) -> str:
     
     return "\n".join(element.path for element in tree.tree)
 
-def repolist(g: Github, *_) -> str:
+def repolist(g: Github, *_: tuple) -> str:
     user = g.get_user()
     repos = {repo.full_name: repo for repo in user.get_repos(type="all")}
     for org in user.get_orgs():
@@ -265,7 +265,7 @@ def think(*outs: tuple) -> str:
         raise ValueError("Gemini output requires a thought parameter")
     return thought
 
-def currentdir() -> str:
+def currentdir(*_: tuple) -> str:
     return os.getcwd()
 
 def newbranch(loc: str, *outs: tuple) -> str:

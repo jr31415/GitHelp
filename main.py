@@ -19,7 +19,7 @@ model="gemini-3-flash-preview"
 
 rules = init.get_settings()
 autocommit_interval = 15 #default to 15 minutes
-def debug_out(msg):
+def debug_out(msg: str) -> None: #will only print to console if debug mode is on
     if rules.get("debug"):
         try:
             console.print(f"[red][bold][DEBUG]: [/bold][/red][yellow]{msg}[/yellow]")
@@ -28,7 +28,7 @@ def debug_out(msg):
             console.print("\n\n[red][bold][DEBUG]: [/bold][/red][yellow][italic]Fallback print statement used -- check files that Gitpanion is reading for rich markup errors![/italic][/yellow]\n\n")
 
 
-def send_with_retry(chat, message, max_retries=5):
+def send_with_retry(chat, message, max_retries=5): #handles rate limiting and server errors
     delay = 5
     for attempt in range(max_retries):
         try:
