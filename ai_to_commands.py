@@ -13,7 +13,7 @@ possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
                      "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE", "THINK",
                      "CURRENTDIR", "NEWBRANCH", "LISTBRANCHES", "SWITCHBRANCH",
-                     "MERGE", "PR", "PUSH", "COMMIT"]
+                     "MERGE", "PR", "PUSH", "COMMIT", "REBASE"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     match = re.match(r"([^:]+):", text)
@@ -319,6 +319,25 @@ def commit(loc: str, *outs: tuple) -> str:
     if out.returncode != 0:
         raise ValueError(f"Failed to stage changes: {out.stderr.strip()}")
     out = subprocess.run(["git", "-C", loc, "commit", "-m", message], capture_output=True, text=True)
+    return out.stdout + out.stderr
+
+def rebase(loc: str, *outs: tuple) -> str:
+    onto, upstream = "", ""
+    for out in outs:
+        if out[0] == "onto":
+            onto = out[1]
+        elif out[0] == "upstream":
+            upstream = out[1]
+    if onto == "":
+        raise ValueError("Gemini output requires an onto parameter")
+    if upstream:
+        cmd = ["git", "-C", loc, "rebase", "--onto", onto, upstream]
+    else:
+        cmd = ["git", "-C", loc, "rebase", onto]
+    out = subprocess.run(cmd, capture_output=True, text=True)
+    if out.returncode != 0:
+        # Abort the rebase so the repo isn't left in a broken state
+        subprocess.run(["git", "-C", loc, "rebase", "--abort"], capture_output=True)
     return out.stdout + out.stderr
 
 def push(loc: str, *outs: tuple) -> str:
