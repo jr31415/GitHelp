@@ -29,12 +29,14 @@ def debug_out(msg: str) -> None: #will only print to console if debug mode is on
 
 
 def send_with_retry(chat, message, max_retries=5): #handles rate limiting and server errors
+    """Retry on 429/500 API errors with exponential backoff. Pass max_retries=None to retry indefinitely (used during THINK loops so the model isn't killed by a transient rate limit)."""
     delay = 5
-    for attempt in range(max_retries):
+    attempt = 0
+    while max_retries is None or attempt < max_retries:
         try:
             return chat.send_message(message)
         except genai_errors.APIError as e:
-            if e.code == 429 and attempt < max_retries - 1:
+            if e.code == 429 and (max_retries is None or attempt < max_retries - 1):
                 console.print(f"[yellow]Rate limited, retrying in {delay}s...[/yellow]")
                 time.sleep(delay)
                 delay *= 2
@@ -43,6 +45,7 @@ def send_with_retry(chat, message, max_retries=5): #handles rate limiting and se
                 os._exit(1)
             else:
                 raise
+        attempt += 1
 
 
 for required_file in ["auth.dat", "api.dat", "prompt.txt", "autocommitprompt.txt"]:
@@ -101,6 +104,7 @@ def main_loop():
 
         for attempt in range(MAX_RETRIES):
             parse_failed = False
+            only_thinking = True
             user_response_parts = []
 
             writeloc_blocks = []
@@ -140,6 +144,8 @@ def main_loop():
                     else:
                         command, out1, out2, out3 = ai_to_commands.interpret(line)
                         debug_out(f"ATTEMPT COMMAND: {command}")
+                        if command != "THINK":
+                            only_thinking = False
                         if command == "TEXT":
                             ai_to_commands.text(out1, out2, out3)
                         elif command == "ASK":
@@ -282,7 +288,7 @@ def main_loop():
         if user_response:
             user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]").replace(key, "[REDACTED]gemini api key[REDACTED]")
             debug_out(f"SEND -> {user_response}")
-        response = send_with_retry(chat, user_response if user_response is not None else "Done")
+        response = send_with_retry(chat, user_response if user_response is not None else "Done", max_retries=None if only_thinking else 5)
 
 
 
