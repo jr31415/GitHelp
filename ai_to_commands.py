@@ -6,6 +6,7 @@ from github import Github
 from pathlib import Path
 import subprocess
 import webbrowser
+import init
 console = Console()
 
 possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
@@ -344,8 +345,8 @@ def rebase(loc: str, *outs: tuple) -> str:
         subprocess.run(["git", "-C", loc, "rebase", "--abort"], capture_output=True)
     return out.stdout + out.stderr
 
-def push(loc: str, *outs: tuple) -> str:
-    """Push to a remote after user confirmation; returns None if denied."""
+def push(loc: str, *outs: tuple, autopush: bool = False) -> str:
+    """Push to a remote after user confirmation; returns None if denied. Skips confirmation if autopush=True."""
     remote = "origin"
     branch = ""
     for out in outs:
@@ -356,11 +357,12 @@ def push(loc: str, *outs: tuple) -> str:
     cmd = ["git", "-C", loc, "push", remote]
     if branch:
         cmd.append(branch)
-    label = f"git push {remote}" + (f" {branch}" if branch else "")
-    authorization = console.input(f"Gitpanion is attempting to push: [blue]{label}[/blue] Do you authorize this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
-    console.print("\n")
-    if authorization.lower() not in ("yes", "y", "yes."):
-        return None
+    if not autopush:
+        label = f"git push {remote}" + (f" {branch}" if branch else "")
+        authorization = console.input(f"Gitpanion is attempting to push: [blue]{label}[/blue] Do you authorize this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
+        console.print("\n")
+        if authorization.lower() not in ("yes", "y", "yes."):
+            return None
     out = subprocess.run(cmd, capture_output=True, text=True)
     return out.stdout + out.stderr
 
@@ -403,11 +405,14 @@ def settings(*_: tuple) -> None:
                 else:
                     rules[name_match.group(1)] = val_str
     else:
-        file.write_text("autorun=FALSE\nautowrite=FALSE\ndefaultgithubdir=\nautocommit=TRUE")
+        file.write_text("\n".join(
+            f"{k}={'TRUE' if v is True else 'FALSE' if v is False else v}"
+            for k, v in init.SETTING_DEFAULTS.items()
+        ))
         console.print("Settings file created, reask Githelp about settings to edit settings")
         return
     for setting in rules.keys():
-        if setting in ["autorun", "autowrite", "debug", "autocommit"]:
+        if setting in ["autorun", "autowrite", "autopush", "debug", "autocommit"]:
             newrule = console.input(f"Would you like to enable {setting}? Type \"yes\" or \"no\" (all other inputs will be treated as a no): ")
             if newrule.lower() in ["yes", "yes.", "y"]:
                 console.print(f"{setting} [green]enabled[/green]")

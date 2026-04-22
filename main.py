@@ -13,6 +13,7 @@ from google.genai import types
 from google.genai import errors as genai_errors
 console = Console()
 console.clear()
+init.run()
 
 #Settings for Gemini
 model="gemini-3-flash-preview"
@@ -244,7 +245,7 @@ def main_loop():
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.push(autocommit_loc, out1, out2, out3)
+                                output = ai_to_commands.push(autocommit_loc, out1, out2, out3, autopush=rules.get("autopush"))
                                 user_response_parts.append(f"Command output:\n{output}" if output is not None else "User denied the push.")
                         elif command == "PR":
                             if not autocommit_loc:
