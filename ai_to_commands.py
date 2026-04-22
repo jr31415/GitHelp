@@ -14,7 +14,7 @@ possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
                      "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE", "THINK",
                      "CURRENTDIR", "NEWBRANCH", "LISTBRANCHES", "SWITCHBRANCH",
-                     "MERGE", "PR", "PUSH", "COMMIT", "REBASE"]
+                     "MERGE", "PR", "PUSH", "COMMIT", "REBASE", "ADD"]
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     """Parse a line of AI output into (command, out1, out2, out3) where each out is a (param_name, value) tuple."""
@@ -310,6 +310,16 @@ def merge(loc: str, *outs: tuple) -> str:
     if branch == "":
         raise ValueError("Gemini output requires a branch parameter")
     out = subprocess.run(["git", "-C", loc, "merge", branch], capture_output=True, text=True)
+    return out.stdout + out.stderr
+
+def add(loc: str, *outs: tuple) -> str:
+    path = ""
+    for out in outs:
+        if out[0] == "path":
+            path = out[1]
+    if path == "":
+        raise ValueError("Gemini output requires a path parameter")
+    out = subprocess.run(["git", "-C", loc, "add", path], capture_output=True, text=True)
     return out.stdout + out.stderr
 
 def commit(loc: str, *outs: tuple) -> str:
