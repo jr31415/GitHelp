@@ -422,7 +422,7 @@ def settings(*_: tuple) -> None:
         console.print("Settings file created, reask Githelp about settings to edit settings")
         return
     for setting in rules.keys():
-        if setting in ["autorun", "autowrite", "autopush", "debug", "autocommit"]:
+        if setting in ["run without confirmation", "write without confirmation", "push without confirmation", "debug", "autocommit"]:
             newrule = console.input(f"Would you like to enable {setting}? Type \"yes\" or \"no\" (all other inputs will be treated as a no): ")
             if newrule.lower() in ["yes", "yes.", "y"]:
                 console.print(f"{setting} [green]enabled[/green]")

@@ -140,7 +140,7 @@ def main_loop():
                             break
                         file_path, reason, content = writeloc_blocks[writeloc_idx]
                         writeloc_idx += 1
-                        wrote = ai_to_commands.writeloc_direct(file_path, content, reason, autowrite=rules.get("autowrite"))
+                        wrote = ai_to_commands.writeloc_direct(file_path, content, reason, autowrite=rules.get("write without confirmation"))
                         user_response_parts.append("File written successfully." if wrote else "User denied the file write.")
                     else:
                         command, out1, out2, out3 = ai_to_commands.interpret(line)
@@ -172,7 +172,7 @@ def main_loop():
                             result = ai_to_commands.structloc(out1, out2, out3)
                             user_response_parts.append(f"Directory structure:\n{result}")
                         elif command == "RUNCOMMAND":
-                            output, ran = ai_to_commands.runcommand(out1, out2, out3, autorun=rules.get("autorun"))
+                            output, ran = ai_to_commands.runcommand(out1, out2, out3, autorun=rules.get("run without confirmation"))
                             user_response_parts.append(f"Command output:\n{output}" if ran else "User denied the command.")
                         elif command == "AUTHGH":
                             output = ai_to_commands.authgh(out1, out2, out3)
@@ -251,7 +251,7 @@ def main_loop():
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.push(autocommit_loc, out1, out2, out3, autopush=rules.get("autopush"))
+                                output = ai_to_commands.push(autocommit_loc, out1, out2, out3, autopush=rules.get("push without confirmation"))
                                 user_response_parts.append(f"Command output:\n{output}" if output is not None else "User denied the push.")
                         elif command == "PR":
                             if not autocommit_loc:

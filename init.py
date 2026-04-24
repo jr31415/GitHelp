@@ -7,12 +7,13 @@ from google.genai import errors as genai_errors
 import subprocess
 import sys
 import re
+import os
 console = Console()
 
 SETTING_DEFAULTS = {
-    "autorun": False,
-    "autowrite": False,
-    "autopush": False,
+    "run without confirmation": False,
+    "write without confirmation": False,
+    "push without confirmation": False,
     "defaultgithubdir": "",
     "autocommit": True,
 }
@@ -79,6 +80,11 @@ def run() -> None:
         if result.returncode != 0:
             console.print("[red]Failed to install Homebrew. Please install it manually from https://brew.sh[/red]")
             sys.exit(1)
+        # Homebrew on Apple Silicon installs to /opt/homebrew; update PATH so subsequent calls find it
+        for brew_bin in ["/opt/homebrew/bin", "/usr/local/bin"]:
+            if Path(f"{brew_bin}/brew").exists():
+                os.environ["PATH"] = f"{brew_bin}:{os.environ['PATH']}"
+                break
         console.print("[green]Homebrew installed successfully.[/green]")
     else:
         console.print("[green]Homebrew is already installed.[/green]")
