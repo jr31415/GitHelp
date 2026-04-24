@@ -327,8 +327,20 @@ def autocommit():
                 ).stdout.strip().split()
                 autocommit_shas = [sha for sha in autocommit_shas if sha in history]
 
-            can_amend = bool(autocommit_shas) and current_head == autocommit_shas[-1]
-            can_squash = len(autocommit_shas) >= 2 and current_head == autocommit_shas[-1]
+            remote_check = subprocess.run(
+                ["git", "-C", loc, "rev-parse", "--verify", "@{u}"],
+                capture_output=True, text=True
+            )
+            if remote_check.returncode == 0:
+                unpushed = set(subprocess.run(
+                    ["git", "-C", loc, "log", "--format=%H", "@{u}..HEAD"],
+                    capture_output=True, text=True
+                ).stdout.strip().split())
+            else:
+                unpushed = set(autocommit_shas)
+
+            can_amend = bool(autocommit_shas) and current_head == autocommit_shas[-1] and autocommit_shas[-1] in unpushed
+            can_squash = len(autocommit_shas) >= 2 and current_head == autocommit_shas[-1] and all(sha in unpushed for sha in autocommit_shas)
 
             context = (
                 f"The following is the Git diff:\n{diff}\n\n"
