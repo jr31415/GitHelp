@@ -54,7 +54,7 @@ When staging commits, the user might have files that shouldn't be uploaded (eg a
 
 Additionally, before pushing, make sure you look at the code that you are pushing -- if there are any bugs in the code, ask the user if they want them fixed before pushing.
 
-If if you are going to both commit and push, include both in the same command to avoid the user having to confirm too many commands
+If the user asks to commit some changes, instead of assuming that they want to push their changes, ask them first.
 
 NEVER EVER READ ./auth.dat or ./api.dat!!
 
