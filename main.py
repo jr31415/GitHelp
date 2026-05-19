@@ -3,6 +3,7 @@ import re
 import time
 import threading
 import subprocess
+import concurrent.futures
 import init
 import ai_to_commands
 from rich.console import Console
@@ -29,7 +30,7 @@ def debug_out(msg: str) -> None: #will only print to console if debug mode is on
             console.print("\n\n[red][bold][DEBUG]: [/bold][/red][yellow][italic]Fallback print statement used -- check files that Gitpanion is reading for rich markup errors![/italic][/yellow]\n\n")
 
 
-def send_with_retry(chat, message, max_retries=5): #handles rate limiting and server errors
+def send_with_retry(chat, message, max_retries=10): #handles rate limiting and server errors
     """Retry on 429/500 API errors with exponential backoff. Pass max_retries=None to retry indefinitely (used during THINK loops so the model isn't killed by a transient rate limit)."""
     delay = 5
     attempt = 0
@@ -315,27 +316,28 @@ def autocommit():
                     system_instruction=autocommitsi
                 )
             )
-            diff = subprocess.run(["git", "-C", loc, "diff", "HEAD"], capture_output=True, text=True).stdout
-            last_commit_msg = subprocess.run(["git", "-C", loc, "log", "-1", "--format=%s"], capture_output=True, text=True).stdout.strip()
-            current_head = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+            def _git(*args):
+                return subprocess.run(["git", "-C", loc] + list(args), capture_output=True, text=True)
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                f_diff = executor.submit(_git, "diff", "HEAD")
+                f_log = executor.submit(_git, "log", "-1", "--format=%s")
+                f_head = executor.submit(_git, "rev-parse", "HEAD")
+                f_remote = executor.submit(_git, "rev-parse", "--verify", "@{u}")
+                f_history = executor.submit(_git, "log", "--format=%H", f"-{len(autocommit_shas) + 5}") if autocommit_shas else None
+
+            diff = f_diff.result().stdout
+            last_commit_msg = f_log.result().stdout.strip()
+            current_head = f_head.result().stdout.strip()
+            remote_check = f_remote.result()
 
             # Validate tracked SHAs are still in git history (user may have rebased/reset)
-            if autocommit_shas:
-                history = subprocess.run(
-                    ["git", "-C", loc, "log", "--format=%H", f"-{len(autocommit_shas) + 5}"],
-                    capture_output=True, text=True
-                ).stdout.strip().split()
+            if autocommit_shas and f_history:
+                history = f_history.result().stdout.strip().split()
                 autocommit_shas = [sha for sha in autocommit_shas if sha in history]
 
-            remote_check = subprocess.run(
-                ["git", "-C", loc, "rev-parse", "--verify", "@{u}"],
-                capture_output=True, text=True
-            )
             if remote_check.returncode == 0:
-                unpushed = set(subprocess.run(
-                    ["git", "-C", loc, "log", "--format=%H", "@{u}..HEAD"],
-                    capture_output=True, text=True
-                ).stdout.strip().split())
+                unpushed = set(_git("log", "--format=%H", "@{u}..HEAD").stdout.strip().split())
             else:
                 unpushed = set(autocommit_shas)
 
