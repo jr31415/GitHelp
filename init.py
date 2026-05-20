@@ -1,4 +1,3 @@
-from rich.console import Console
 from github import Github, GithubException
 from github import Auth
 from pathlib import Path
@@ -8,7 +7,8 @@ import subprocess
 import sys
 import re
 import os
-console = Console()
+from console_proxy import ConsoleProxy
+console = ConsoleProxy()
 
 SETTING_DEFAULTS = {
     "run without confirmation": False,

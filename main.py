@@ -6,21 +6,27 @@ import subprocess
 import concurrent.futures
 import init
 import ai_to_commands
-from rich.console import Console
+from console_proxy import ConsoleProxy
 from github import GithubException
 from pathlib import Path
 from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
-console = Console()
-console.clear()
-init.run()
+console = ConsoleProxy()
 
-#Settings for Gemini
-model="gemini-3-flash-preview"
+model = "gemini-3-flash-preview"
+autocommit_interval = 15
 
-rules = init.get_settings()
-autocommit_interval = 15 #default to 15 minutes
+# Globals populated by run() before threads start
+rules = {}
+autocommit_loc = ""
+chat = None
+github = None
+gemini = None
+access_token = ""
+key = ""
+autocommitsi = ""
+autocommit_prompt = ""
 def debug_out(msg: str) -> None: #will only print to console if debug mode is on
     if rules.get("debug"):
         try:
@@ -50,46 +56,6 @@ def send_with_retry(chat, message, max_retries=10): #handles rate limiting and s
         attempt += 1
 
 
-for required_file in ["auth.dat", "api.dat", "prompt.txt", "autocommitprompt.txt"]:
-    if not Path(required_file).is_file():
-        console.print(f"[red]Missing required file: {required_file}[/red]")
-        os._exit(1)
-
-login_details = Path("auth.dat")
-gemini_api = Path("api.dat")
-access_token = login_details.read_text().strip()
-key = gemini_api.read_text().strip()
-os.environ["GH_TOKEN"] = access_token  # lets gh CLI authenticate without writing config files
-
-github = init.attempt_login(access_token)
-gemini = genai.Client(api_key=key)
-
-prompt = Path("prompt.txt").read_text()
-autocommitsi = Path("autocommitsi.txt").read_text() if Path("autocommitsi.txt").is_file() else "nosi"
-autocommit_prompt = Path("autocommitprompt.txt").read_text() if Path("autocommitprompt.txt").is_file() else "noprompt"
-
-if autocommit_prompt == "noprompt":
-    raise FileNotFoundError("Missing autocommitprompt.txt, which is required for autcommit features. Please create this file with the appropriate system instruction for autocommits.")
-if autocommitsi == "nosi":
-    raise FileNotFoundError("Missing autocommitsi.txt, which is required for autocommit features. Please create this file with the appropriate system instruction for autocommits.")
-
-default_dir = rules.get("defaultgithubdir")
-autocommit_loc = ""
-system_instruction = prompt + f"\n\nUser's default GitHub directory:\"{default_dir}\"" if default_dir else prompt
-
-debug_out(f"Settings: {rules}")
-debug_out(f"System Instruction: {system_instruction}")
-
-
-chat = gemini.chats.create(
-    model=model,
-    config=types.GenerateContentConfig(
-        thinking_config=types.ThinkingConfig(thinking_level="low"),
-        system_instruction=system_instruction
-    )
-)
-
-stop_event = threading.Event()
 
 writeloc_pattern = re.compile(
     r'WRITELOC:[^\n]*file="((?:[^"\\]|\\.)*)"[^\n]*reason="((?:[^"\\]|\\.)*)"[^\n]*\n<FILE>\n(.*?)\n</FILE>',
@@ -435,11 +401,56 @@ def autocommit():
             else:
                 debug_out("Autocommit denied")
 
-autocommit_thread = threading.Thread(target=autocommit, name="autocommit", daemon=True)
+def run() -> None:
+    global rules, chat, github, gemini, access_token, key, autocommitsi, autocommit_prompt
+
+    init.run()
+    rules = init.get_settings()
+
+    for required_file in ["auth.dat", "api.dat", "prompt.txt", "autocommitprompt.txt"]:
+        if not Path(required_file).is_file():
+            console.print(f"[red]Missing required file: {required_file}[/red]")
+            os._exit(1)
+
+    login_details = Path("auth.dat")
+    gemini_api_file = Path("api.dat")
+    access_token = login_details.read_text().strip()
+    key = gemini_api_file.read_text().strip()
+    os.environ["GH_TOKEN"] = access_token
+
+    github = init.attempt_login(access_token)
+    gemini = genai.Client(api_key=key)
+
+    prompt = Path("prompt.txt").read_text()
+    autocommitsi = Path("autocommitsi.txt").read_text() if Path("autocommitsi.txt").is_file() else "nosi"
+    autocommit_prompt = Path("autocommitprompt.txt").read_text() if Path("autocommitprompt.txt").is_file() else "noprompt"
+
+    if autocommit_prompt == "noprompt":
+        raise FileNotFoundError("Missing autocommitprompt.txt, which is required for autocommit features.")
+    if autocommitsi == "nosi":
+        raise FileNotFoundError("Missing autocommitsi.txt, which is required for autocommit features.")
+
+    default_dir = rules.get("defaultgithubdir")
+    system_instruction = prompt + f"\n\nUser's default GitHub directory:\"{default_dir}\"" if default_dir else prompt
+
+    debug_out(f"Settings: {rules}")
+    debug_out(f"System Instruction: {system_instruction}")
+
+    chat = gemini.chats.create(
+        model=model,
+        config=types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_level="low"),
+            system_instruction=system_instruction
+        )
+    )
+
+    autocommit_thread = threading.Thread(target=autocommit, name="autocommit", daemon=True)
+    main_thread = threading.Thread(target=main_loop, name="main-loop", daemon=True)
+    main_thread.start()
+    autocommit_thread.start()
+    autocommit_thread.join()
+    main_thread.join()
 
 
-main_thread = threading.Thread(target=main_loop, name="main-loop", daemon=True)
-main_thread.start()
-autocommit_thread.start()
-autocommit_thread.join()
-main_thread.join()
+if __name__ == "__main__":
+    run()

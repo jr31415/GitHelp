@@ -1,4 +1,3 @@
-from rich.console import Console
 import os
 import re
 import shutil
@@ -7,7 +6,8 @@ from pathlib import Path
 import subprocess
 import webbrowser
 import init
-console = Console()
+from console_proxy import ConsoleProxy
+console = ConsoleProxy()
 
 possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "STRUCTLOC", "ASK", "TEXT", "RUNCOMMAND",
