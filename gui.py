@@ -1,7 +1,7 @@
 import threading
 from textual.app import App, ComposeResult
 from textual.events import Paste
-from textual.widgets import RichLog, Input, Header
+from textual.widgets import RichLog, Input, Header, Static
 import console_proxy
 
 
@@ -16,6 +16,15 @@ class GitpanionApp(App):
         padding: 0 1;
         background: $surface;
     }
+    #thinking {
+        display: none;
+        color: $text-muted;
+        padding: 0 1;
+        height: 1;
+    }
+    #thinking.active {
+        display: block;
+    }
     Input {
         dock: bottom;
         border: tall $accent;
@@ -23,15 +32,39 @@ class GitpanionApp(App):
     }
     """
 
+    THINKING_FRAMES = ["Thinking", "Thinking.", "Thinking..", "Thinking..."]
+
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield RichLog(id="log", highlight=True, markup=True, wrap=True)
+        yield Static("", id="thinking")
         yield Input(placeholder="Message Gitpanion...", id="input")
 
     def on_mount(self) -> None:
         console_proxy.set_app(self)
         self.query_one("#input", Input).focus()
+        self._thinking_timer = None
+        self._thinking_frame = 0
         threading.Thread(target=self._run, daemon=True).start()
+
+    def show_thinking(self) -> None:
+        widget = self.query_one("#thinking", Static)
+        widget.add_class("active")
+        self._thinking_frame = 0
+        widget.update(self.THINKING_FRAMES[0])
+        self._thinking_timer = self.set_interval(0.4, self._animate_thinking)
+
+    def hide_thinking(self) -> None:
+        if self._thinking_timer is not None:
+            self._thinking_timer.stop()
+            self._thinking_timer = None
+        widget = self.query_one("#thinking", Static)
+        widget.remove_class("active")
+        widget.update("")
+
+    def _animate_thinking(self) -> None:
+        self._thinking_frame = (self._thinking_frame + 1) % len(self.THINKING_FRAMES)
+        self.query_one("#thinking", Static).update(self.THINKING_FRAMES[self._thinking_frame])
 
     def _run(self) -> None:
         import main

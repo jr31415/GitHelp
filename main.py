@@ -7,6 +7,7 @@ import concurrent.futures
 import init
 import ai_to_commands
 from console_proxy import ConsoleProxy
+import console_proxy
 from github import GithubException
 from pathlib import Path
 from google import genai
@@ -40,20 +41,24 @@ def send_with_retry(chat, message, max_retries=10): #handles rate limiting and s
     """Retry on 429/500 API errors with exponential backoff. Pass max_retries=None to retry indefinitely (used during THINK loops so the model isn't killed by a transient rate limit)."""
     delay = 5
     attempt = 0
-    while max_retries is None or attempt < max_retries:
-        try:
-            return chat.send_message(message)
-        except genai_errors.APIError as e:
-            if e.code == 429 and (max_retries is None or attempt < max_retries - 1):
-                console.print(f"[yellow]Rate limited, retrying in {delay}s...[/yellow]")
-                time.sleep(delay)
-                delay *= 2
-            elif e.code == 500:
-                console.print(f"[red]Internal server error, exiting...[/red]")
-                os._exit(1)
-            else:
-                raise
-        attempt += 1
+    console_proxy.show_thinking()
+    try:
+        while max_retries is None or attempt < max_retries:
+            try:
+                return chat.send_message(message)
+            except genai_errors.APIError as e:
+                if e.code == 429 and (max_retries is None or attempt < max_retries - 1):
+                    console.print(f"[yellow]Rate limited, retrying in {delay}s...[/yellow]")
+                    time.sleep(delay)
+                    delay *= 2
+                elif e.code == 500:
+                    console.print(f"[red]Internal server error, exiting...[/red]")
+                    os._exit(1)
+                else:
+                    raise
+            attempt += 1
+    finally:
+        console_proxy.hide_thinking()
 
 
 
@@ -121,7 +126,7 @@ def main_loop():
                             user_input = ai_to_commands.ask(out1, out2, out3)
                             if user_input.lower()[12:] in ["exit", "quit", "close", "end", "stop", "exit.", "quit.", "close.", "end.", "stop.",]:
                                 console.print("[yellow]Thank you for using Gitpanion, have a great day![/yellow]")
-                                os._exit(0)
+                                console_proxy.exit_app(0)
                             user_response_parts.append(user_input)
                         elif command == "READONL":
                             result = ai_to_commands.readonl(github, out1, out2, out3)

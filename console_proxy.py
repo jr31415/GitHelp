@@ -1,4 +1,5 @@
 import queue
+import threading
 from io import StringIO
 from rich.console import Console as RichConsole
 from rich.text import Text
@@ -14,6 +15,24 @@ def set_app(app) -> None:
 
 def submit_input(value: str) -> None:
     _input_queue.put(value)
+
+
+def show_thinking() -> None:
+    if _app is not None:
+        _app.call_from_thread(_app.show_thinking)
+
+
+def hide_thinking() -> None:
+    if _app is not None:
+        _app.call_from_thread(_app.hide_thinking)
+
+
+def exit_app(return_code: int = 0) -> None:
+    if _app is not None:
+        _app.call_from_thread(_app.exit, return_code)
+        threading.Event().wait()  # block this thread; process exits when Textual finishes cleanup
+    import os
+    os._exit(return_code)
 
 
 def _only_sgr(text: str) -> str:
