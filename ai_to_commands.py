@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import webbrowser
 import init
+import time
 from console_proxy import ConsoleProxy
 console = ConsoleProxy()
 
@@ -14,7 +15,25 @@ possiblecommands = ["READONL", "REPOSTRUCTONL", "REPOLIST", "READLOC",
                      "AUTHGH", "STATUS", "DIFF", "SETTINGS", "OPENPAGE", "GHNAME",
                      "CURRPROJ", "UPDATEAUTOCOMMITDIR", "DELETE", "THINK",
                      "CURRENTDIR", "NEWBRANCH", "LISTBRANCHES", "SWITCHBRANCH",
-                     "MERGE", "PR", "PUSH", "COMMIT", "REBASE", "ADD"]
+                     "MERGE", "PR", "PUSH", "COMMIT", "REBASE", "ADD", "TASKS"]
+
+class TaskObject():
+    def __init__(self, action: str, task: str, executed: bool):
+        if not action in ["c", "w", "d"]: #c for command, w for write, d for deleted
+            raise ValueError("action must be \"c\", \"w\", or \"d\"")
+        self.timestamp = time.time()
+        self.action = action
+        self.task = task
+        self.excecuted = executed
+    def truncate_task(self):
+        """Used for files written -- will show the first 20 chars
+        followed by ... followed by the last 10
+        """
+        self.task = self.task[:20] + "..." + self.task[-10:]
+
+    def getprocessstr(self):
+        stract = "Command Run: " if self.action == "c" else "File Deleted: " if self.action == "d" else "File Written: "
+        return f"[{self.timestamp}] {stract}{self.task}"
 
 def interpret(text: str) -> tuple[str, tuple, tuple, tuple]:
     """Parse a line of AI output into (command, out1, out2, out3) where each out is a (param_name, value) tuple."""
@@ -119,7 +138,7 @@ def readloc(*outs: tuple) -> str:
 
 
 
-def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool = False) -> bool:
+def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool = False) -> tuple[bool, TaskObject]:
     """Write contents to a file, prompting the user for confirmation unless autowrite=True (set by the autowrite setting)."""
     file = Path(file_path).resolve()
     action = "overwrite" if file.is_file() else "write"
@@ -131,9 +150,11 @@ def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool 
     if authorization.lower() in ("yes", "y", "yes."):
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_text(contents)
-        return True
+        task = TaskObject("w", contents, True)
     else:
-        return False
+        task = TaskObject("w", contents, False)
+    task.truncate_task()
+    return task
 
 def structloc(*outs: tuple) -> str:
     directory = ""
@@ -151,7 +172,7 @@ def structloc(*outs: tuple) -> str:
         loc = "Directory contents too large to display"
     return loc
 
-def runcommand(*outs: tuple, autorun: bool = False) -> tuple[str, bool]:
+def runcommand(*outs: tuple, autorun: bool = False) -> tuple[str, TaskObject]:
     """Run an arbitrary shell command after user confirmation; returns (output, ran). shell=True is intentional — the AI may produce pipes, redirects, or compound commands."""
     command, reason = "", ""
     for out in outs:
@@ -168,10 +189,12 @@ def runcommand(*outs: tuple, autorun: bool = False) -> tuple[str, bool]:
         authorization = "yes"
 
     if authorization.lower() in ("yes", "y", "yes."):
+        task = TaskObject("c", command, True)
         out = subprocess.run(command, capture_output=True, text=True, shell=True)
-        return (out.stdout + out.stderr, True)
+        return (out.stdout + out.stderr, task)
     else:
-        return (None, False)
+        task = TaskObject("c", command, False)
+        return (None, task)
     
 def authgh(*_: tuple) -> str:
     out = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True)
@@ -256,9 +279,9 @@ def delete(*outs: tuple) -> tuple[str, bool]:
             shutil.rmtree(filepath)
         else:
             filepath.unlink()
-        return f"{filepath} deleted successfully", True
+        return f"{filepath} deleted successfully", TaskObject("d", str(filepath), True)
     else:
-        return f"User denied deletion of {filepath}", False
+        return f"User denied deletion of {filepath}", TaskObject("d", str(filepath), False)
     
 def think(*outs: tuple) -> str:
     thought = ""
@@ -272,7 +295,7 @@ def think(*outs: tuple) -> str:
 def currentdir(*_: tuple) -> str:
     return os.getcwd()
 
-def newbranch(loc: str, *outs: tuple) -> str:
+def newbranch(loc: str, *outs: tuple) -> tuple[str, TaskObject]:
     branch = ""
     for out in outs:
         if out[0] == "branch":
@@ -282,7 +305,7 @@ def newbranch(loc: str, *outs: tuple) -> str:
     out = subprocess.run(["git", "-C", loc, "checkout", "-b", branch], capture_output=True, text=True)
     if out.returncode != 0:
         raise ValueError(f"Failed to create branch: {out.stderr.strip()}")
-    return out.stdout + out.stderr
+    return out.stdout + out.stderr, TaskObject("c", f"git checkout -b {branch}", True)
 
 def listbranches(loc: str) -> str:
     out = subprocess.run(["git", "-C", loc, "branch", "-a"], capture_output=True, text=True)
@@ -290,7 +313,7 @@ def listbranches(loc: str) -> str:
         raise ValueError(f"Failed to list branches: {out.stderr.strip()}")
     return out.stdout + out.stderr
 
-def switchbranch(loc: str, *outs: tuple) -> str:
+def switchbranch(loc: str, *outs: tuple) -> tuple[str, TaskObject]:
     branch = ""
     for out in outs:
         if out[0] == "branch":
@@ -300,9 +323,9 @@ def switchbranch(loc: str, *outs: tuple) -> str:
     out = subprocess.run(["git", "-C", loc, "checkout", branch], capture_output=True, text=True)
     if out.returncode != 0:
         raise ValueError(f"Failed to switch branch: {out.stderr.strip()}")
-    return out.stdout + out.stderr
+    return out.stdout + out.stderr, TaskObject("c", f"git checkout {branch}", True)
 
-def merge(loc: str, *outs: tuple) -> str:
+def merge(loc: str, *outs: tuple) -> tuple[str, TaskObject]:
     branch = ""
     for out in outs:
         if out[0] == "branch":
@@ -310,9 +333,9 @@ def merge(loc: str, *outs: tuple) -> str:
     if branch == "":
         raise ValueError("Gemini output requires a branch parameter")
     out = subprocess.run(["git", "-C", loc, "merge", branch], capture_output=True, text=True)
-    return out.stdout + out.stderr
+    return out.stdout + out.stderr, TaskObject("c", f"git merge {branch}", True)
 
-def add(loc: str, *outs: tuple) -> str:
+def add(loc: str, *outs: tuple) -> tuple[str, TaskObject]:
     path = ""
     for out in outs:
         if out[0] == "path":
@@ -320,9 +343,9 @@ def add(loc: str, *outs: tuple) -> str:
     if path == "":
         raise ValueError("Gemini output requires a path parameter")
     out = subprocess.run(["git", "-C", loc, "add", path], capture_output=True, text=True)
-    return out.stdout + out.stderr
+    return out.stdout + out.stderr, TaskObject("c", f"git add {path}", True)
 
-def commit(loc: str, *outs: tuple) -> str:
+def commit(loc: str, *outs: tuple) -> tuple[str, TaskObject]:
     message = ""
     for out in outs:
         if out[0] == "message":
@@ -333,7 +356,7 @@ def commit(loc: str, *outs: tuple) -> str:
     if out.returncode != 0:
         raise ValueError(f"Failed to stage changes: {out.stderr.strip()}")
     out = subprocess.run(["git", "-C", loc, "commit", "-m", message], capture_output=True, text=True)
-    return out.stdout + out.stderr
+    return out.stdout + out.stderr, TaskObject("c", f"git commit -m {message}", True)
 
 def rebase(loc: str, *outs: tuple) -> str:
     """Non-interactively rebase onto a branch/commit; with upstream, uses --onto for grafting. Auto-aborts on conflict to avoid leaving the repo in a mid-rebase state."""
@@ -353,7 +376,8 @@ def rebase(loc: str, *outs: tuple) -> str:
     if out.returncode != 0:
         # Abort the rebase so the repo isn't left in a broken state
         subprocess.run(["git", "-C", loc, "rebase", "--abort"], capture_output=True)
-    return out.stdout + out.stderr
+    label = f"git rebase --onto {onto} {upstream}" if upstream else f"git rebase {onto}"
+    return out.stdout + out.stderr, TaskObject("c", label, True)
 
 def push(loc: str, *outs: tuple, autopush: bool = False) -> str:
     """Push to a remote after user confirmation; returns None if denied. Skips confirmation if autopush=True."""
@@ -367,14 +391,14 @@ def push(loc: str, *outs: tuple, autopush: bool = False) -> str:
     cmd = ["git", "-C", loc, "push", remote]
     if branch:
         cmd.append(branch)
+    label = f"git push {remote}" + (f" {branch}" if branch else "")
     if not autopush:
-        label = f"git push {remote}" + (f" {branch}" if branch else "")
         authorization = console.input(f"Gitpanion is attempting to push: [blue]{label}[/blue] Do you authorize this action? Respond \"[bold]yes[/bold]\" to confirm, or anything else to deny: ")
         console.print("\n")
         if authorization.lower() not in ("yes", "y", "yes."):
-            return None
+            return None, TaskObject("c", label, False)
     out = subprocess.run(cmd, capture_output=True, text=True)
-    return out.stdout + out.stderr
+    return out.stdout + out.stderr, TaskObject("c", label, True)
 
 def pr(loc: str, *outs: tuple) -> str:
     """Create a pull request via gh CLI using the GH_TOKEN env var set at startup; runs from within the project directory."""
@@ -392,7 +416,7 @@ def pr(loc: str, *outs: tuple) -> str:
         ["gh", "pr", "create", "--head", branch, "--title", title, "--body", body],
         capture_output=True, text=True, cwd=loc
     )
-    return out.stdout + out.stderr
+    return out.stdout + out.stderr, TaskObject("c", f"gh pr create --head {branch} --title {title}", True)
 
 def settings(*_: tuple) -> None:
     """Interactively walk the user through toggling each setting in settings.txt; creates the file with defaults if it doesn't exist."""
@@ -452,3 +476,11 @@ def settings(*_: tuple) -> None:
         newrules.append(f"{itm[0]}={itm[1]}")
     
     file.write_text("\n".join(newrules))
+
+def tasks(task_list: list) -> None:
+    exc = [] #excecuted
+    for task in task_list:
+        if task.excecuted:
+            exc.append(task.getprocessstr()) 
+    output = "\n".join(exc)
+    console.print(f"[yellow]Tasks run:[/yellow]\n\n{output}")

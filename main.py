@@ -28,6 +28,9 @@ access_token = ""
 key = ""
 autocommitsi = ""
 autocommit_prompt = ""
+
+tasks = []
+
 def debug_out(msg: str) -> None: #will only print to console if debug mode is on
     if rules.get("debug"):
         try:
@@ -112,8 +115,9 @@ def main_loop():
                             break
                         file_path, reason, content = writeloc_blocks[writeloc_idx]
                         writeloc_idx += 1
-                        wrote = ai_to_commands.writeloc_direct(file_path, content, reason, autowrite=rules.get("write without confirmation"))
-                        user_response_parts.append("File written successfully." if wrote else "User denied the file write.")
+                        task = ai_to_commands.writeloc_direct(file_path, content, reason, autowrite=rules.get("write without confirmation"))
+                        tasks.append(task)
+                        user_response_parts.append("File written successfully." if task.excecuted else "User denied the file write.")
                     else:
                         command, out1, out2, out3 = ai_to_commands.interpret(line)
                         debug_out(f"ATTEMPT COMMAND: {command}")
@@ -144,8 +148,9 @@ def main_loop():
                             result = ai_to_commands.structloc(out1, out2, out3)
                             user_response_parts.append(f"Directory structure:\n{result}")
                         elif command == "RUNCOMMAND":
-                            output, ran = ai_to_commands.runcommand(out1, out2, out3, autorun=rules.get("run without confirmation"))
-                            user_response_parts.append(f"Command output:\n{output}" if ran else "User denied the command.")
+                            output, task = ai_to_commands.runcommand(out1, out2, out3, autorun=rules.get("run without confirmation"))
+                            tasks.append(task)
+                            user_response_parts.append(f"Command output:\n{output}" if task.excecuted == True else "User denied the command.")
                         elif command == "AUTHGH":
                             output = ai_to_commands.authgh(out1, out2, out3)
                             user_response_parts.append(f"Command output:\n{output}")
@@ -166,7 +171,8 @@ def main_loop():
                             output = ai_to_commands.ghname(github, out1, out2, out3)
                             user_response_parts.append(f"GitHub username: {output}")
                         elif command == "DELETE":
-                            output, _ = ai_to_commands.delete(out1, out2, out3)
+                            output, task = ai_to_commands.delete(out1, out2, out3)
+                            tasks.append(task)
                             user_response_parts.append(f"{output}")
                         elif command == "THINK":
                             output = ai_to_commands.think(out1, out2, out3)
@@ -181,7 +187,8 @@ def main_loop():
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.newbranch(autocommit_loc, out1, out2, out3)
+                                output, task = ai_to_commands.newbranch(autocommit_loc, out1, out2, out3)
+                                tasks.append(task)
                                 user_response_parts.append(f"Command output:\n{output}")
                         elif command == "LISTBRANCHES":
                             if not autocommit_loc:
@@ -193,43 +200,50 @@ def main_loop():
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.switchbranch(autocommit_loc, out1, out2, out3)
+                                output, task = ai_to_commands.switchbranch(autocommit_loc, out1, out2, out3)
+                                tasks.append(task)
                                 user_response_parts.append(f"Command output:\n{output}")
                         elif command == "MERGE":
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.merge(autocommit_loc, out1, out2, out3)
+                                output, task = ai_to_commands.merge(autocommit_loc, out1, out2, out3)
+                                tasks.append(task)
                                 user_response_parts.append(f"Command output:\n{output}")
                         elif command == "REBASE":
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.rebase(autocommit_loc, out1, out2, out3)
+                                output, task = ai_to_commands.rebase(autocommit_loc, out1, out2, out3)
+                                tasks.append(task)
                                 user_response_parts.append(f"Command output:\n{output}")
                         elif command == "ADD":
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.add(autocommit_loc, out1, out2, out3)
+                                output, task = ai_to_commands.add(autocommit_loc, out1, out2, out3)
+                                tasks.append(task)
                                 user_response_parts.append(f"Command output:\n{output}")
                         elif command == "COMMIT":
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.commit(autocommit_loc, out1, out2, out3)
+                                output, task = ai_to_commands.commit(autocommit_loc, out1, out2, out3)
+                                tasks.append(task)
                                 user_response_parts.append(f"Command output:\n{output}")
                         elif command == "PUSH":
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.push(autocommit_loc, out1, out2, out3, autopush=rules.get("push without confirmation"))
+                                output, task = ai_to_commands.push(autocommit_loc, out1, out2, out3, autopush=rules.get("push without confirmation"))
+                                tasks.append(task)
                                 user_response_parts.append(f"Command output:\n{output}" if output is not None else "User denied the push.")
                         elif command == "PR":
                             if not autocommit_loc:
                                 user_response_parts.append("No current project set. Please activate a project first.")
                             else:
-                                output = ai_to_commands.pr(autocommit_loc, out1, out2, out3)
+                                output, task = ai_to_commands.pr(autocommit_loc, out1, out2, out3)
+                                tasks.append(task)
                                 user_response_parts.append(f"Command output:\n{output}")
                         elif command == "SETTINGS":
                             ai_to_commands.settings(out1, out2, out3)
@@ -239,6 +253,9 @@ def main_loop():
                                 user_response_parts.append(f"User updated their settings, default GitHub directory is now {new_default_dir} ask them what they want to do next.")
                             else:
                                 user_response_parts.append(f"User updated their settings, ask them what they want to do next.")
+                        elif command == "TASKS":
+                            ai_to_commands.tasks(tasks)
+
                         else:
                             console.print(f"[yellow]Unhandled command: {command}[/yellow]")
                             os._exit(1)
