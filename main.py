@@ -355,6 +355,7 @@ def autocommit():
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
                         autocommit_shas.append(new_sha)
+                        tasks.append(ai_to_commands.TaskObject("c", f"git commit -m {commit_message}", True))
                         console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
                     else:
                         console.print(f"[red]Autocommit failed[/red]")
@@ -369,6 +370,7 @@ def autocommit():
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
                         autocommit_shas[-1] = new_sha
+                        tasks.append(ai_to_commands.TaskObject("c", f"git commit --amend -m {commit_message}", True))
                         console.print(f"[green]Autocommit amended with message:[/green] [bold]{commit_message}[/bold]")
                     else:
                         console.print(f"[red]Autocommit amend failed[/red]")
@@ -383,6 +385,7 @@ def autocommit():
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
                         autocommit_shas.append(new_sha)
+                        tasks.append(ai_to_commands.TaskObject("c", f"git commit -m {commit_message}", True))
                         console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
 
             elif lower.startswith("squash"):
@@ -400,6 +403,7 @@ def autocommit():
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
                         autocommit_shas = [new_sha]
+                        tasks.append(ai_to_commands.TaskObject("c", f"git commit (squash {n}) -m {commit_message}", True))
                         console.print(f"[green]Autocommit squashed {n} commits with message:[/green] [bold]{commit_message}[/bold]")
                     else:
                         console.print(f"[red]Autocommit squash failed[/red]")
@@ -414,6 +418,7 @@ def autocommit():
                     if result.returncode == 0:
                         new_sha = subprocess.run(["git", "-C", loc, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
                         autocommit_shas.append(new_sha)
+                        tasks.append(ai_to_commands.TaskObject("c", f"git commit -m {commit_message}", True))
                         console.print(f"[green]Autocommit successful with message:[/green] [bold]{commit_message}[/bold]")
 
             elif lower.startswith("wait"):
