@@ -18,7 +18,7 @@ SETTING_DEFAULTS = {
     "autocommit": True,
 }
 
-def _is_installed(command: str) -> bool:
+def is_installed(command: str) -> bool:
     return subprocess.run(["which", command], capture_output=True).returncode == 0
 
 def attempt_login(access_token: str) -> Github:
@@ -71,7 +71,7 @@ def run() -> None:
 
     console.print("[green]Welcome to[/green] [bold][red]Gitpanion[/red][/bold][green], the agentic AI designed to make your life working with Git and GitHub easier.")
 
-    if not _is_installed("brew"):
+    if not is_installed("brew"):
         console.print("[yellow]Homebrew not found. Installing...[/yellow]")
         result = subprocess.run(
             '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
@@ -89,7 +89,7 @@ def run() -> None:
     else:
         console.print("[green]Homebrew is already installed.[/green]")
 
-    if not _is_installed("gh"):
+    if not is_installed("gh"):
         console.print("[yellow]GitHub CLI (gh) not found. Installing via Homebrew...[/yellow]")
         result = subprocess.run(["brew", "install", "gh"])
         if result.returncode != 0:

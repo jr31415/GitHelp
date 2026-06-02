@@ -31,7 +31,7 @@ autocommit_prompt = ""
 
 tasks = []
 
-def _debug_out(msg: str) -> None: #will only print to console if debug mode is on
+def debug_out(msg: str) -> None: #will only print to console if debug mode is on
     if rules.get("debug"):
         try:
             console.print(f"[red][bold][DEBUG]: [/bold][/red][yellow]{msg}[/yellow]")
@@ -40,7 +40,7 @@ def _debug_out(msg: str) -> None: #will only print to console if debug mode is o
             console.print("\n\n[red][bold][DEBUG]: [/bold][/red][yellow][italic]Fallback print statement used -- check files that Gitpanion is reading for rich markup errors![/italic][/yellow]\n\n")
 
 
-def __send_with_retry(chat, message, max_retries=10): #handles rate limiting and server errors
+def send_with_retry(chat, message, max_retries=10): #handles rate limiting and server errors
     """Retry on 429/500 API errors with exponential backoff. Pass max_retries=None to retry indefinitely (used during THINK loops so the model isn't killed by a transient rate limit)."""
     delay = 5
     attempt = 0
@@ -70,9 +70,9 @@ writeloc_pattern = re.compile(
     re.DOTALL
 )
 
-def _main_loop():
+def main_loop():
     global autocommit_loc, rules
-    response = __send_with_retry(chat, "Start")
+    response = send_with_retry(chat, "Start")
     MAX_RETRIES = 5
 
     while True:
@@ -105,10 +105,10 @@ def _main_loop():
                             console.print("[red]Provided directory is not valid, please try again.[/red]\n")
                     if not autocommit_loc.lower() in ["i", "ignore"]:
                         console.print(f"[green]Autocommit enabled for {autocommit_loc}[/green]\n")
-                _debug_out(f"RECEIVED <- {line}")
+                debug_out(f"RECEIVED <- {line}")
                 try:
                     if line == '__WRITELOC__':
-                        _debug_out(f"ATTEMPT COMMAND: __WRITELOC__")
+                        debug_out(f"ATTEMPT COMMAND: __WRITELOC__")
                         if writeloc_idx >= len(writeloc_blocks):
                             user_response_parts.append("Error: mismatched WRITELOC blocks in response.")
                             parse_failed = True
@@ -120,7 +120,7 @@ def _main_loop():
                         user_response_parts.append("File written successfully." if task.excecuted else "User denied the file write.")
                     else:
                         command, out1, out2, out3 = ai_to_commands.interpret(line)
-                        _debug_out(f"ATTEMPT COMMAND: {command}")
+                        debug_out(f"ATTEMPT COMMAND: {command}")
                         if command != "THINK":
                             only_thinking = False
                         if command == "TEXT":
@@ -177,7 +177,7 @@ def _main_loop():
                         elif command == "THINK":
                             output = ai_to_commands.think(out1, out2, out3)
                             user_response_parts.append(f"Thought: {output}")
-                            _debug_out(f"AI Thought: {output}")
+                            debug_out(f"AI Thought: {output}")
                         elif command == "CURRPROJ":
                             user_response_parts.append(f"Current GitHub project:\n{autocommit_loc}" if autocommit_loc else "No current GitHub project detected.")
                         elif command == "CURRENTDIR":
@@ -265,14 +265,14 @@ def _main_loop():
                     error_msg = f"Command failed: {e}. Please try again."
                     if prior_results:
                         error_msg = f"{prior_results}\n{error_msg}"
-                    response = _send_with_retry(chat, error_msg)
+                    response = send_with_retry(chat, error_msg)
                     break
 
             if not parse_failed:
                 break
 
             if attempt < MAX_RETRIES - 1:
-                response = _send_with_retry(chat,
+                response = send_with_retry(chat,
                     "Your response was not formatted correctly. Please respond using only valid commands: TEXT, ASK, READONL, REPOSTRUCTONL, REPOLIST, READLOC, WRITELOC, STRUCTLOC, RUNCOMMAND, AUTHGH, STATUS, DIFF, DELETE, SETTINGS, OPENPAGE, GHNAME, CURRPROJ, UPDATEAUTOCOMMITDIR, THINK, CURRENTDIR, NEWBRANCH, LISTBRANCHES, SWITCHBRANCH, MERGE, PR, PUSH, COMMIT, REBASE, or ADD."
                 )
             else:
@@ -283,12 +283,12 @@ def _main_loop():
         user_response = "\n".join(user_response_parts) if user_response_parts else None
         if user_response:
             user_response = user_response.replace(access_token, "[REDACTED]user access token[REDACTED]").replace(key, "[REDACTED]gemini api key[REDACTED]")
-            _debug_out(f"SEND -> {user_response}")
-        response = _send_with_retry(chat, user_response if user_response is not None else "Done", max_retries=None if only_thinking else 5)
+            debug_out(f"SEND -> {user_response}")
+        response = send_with_retry(chat, user_response if user_response is not None else "Done", max_retries=None if only_thinking else 5)
 
 
 
-def _autocommit():
+def autocommit():
     avert = False #avert the 15 minute cooldown should the AI want to wait a minute to avoid committing mid-edit, will reset after one loop so it doesn't cause issues if they want to wait multiple times in a row
     autocommit_shas = [] # track consecutive autocommit SHAs (for amend/squash eligibility)
     while True:
@@ -337,8 +337,8 @@ def _autocommit():
                 f"Last commit message: {last_commit_msg}\n"
                 f"Recent autocommit count: {len(autocommit_shas)}"
             )
-            output = _send_with_retry(autocommit_chat, f"{context}\n\n{autocommit_prompt}").text
-            _debug_out(f"Autocommit output: {output}")
+            output = send_with_retry(autocommit_chat, f"{context}\n\n{autocommit_prompt}").text
+            debug_out(f"Autocommit output: {output}")
 
             stripped = output.strip()
             lower = stripped.lower()
@@ -376,7 +376,7 @@ def _autocommit():
                         console.print(f"[red]Autocommit amend failed[/red]")
                 elif commit_message:
                     # Amend not eligible (last commit wasn't an autocommit), fall back to new commit
-                    _debug_out("Amend requested but not eligible, falling back to new commit")
+                    debug_out("Amend requested but not eligible, falling back to new commit")
                     add_result = subprocess.run(["git", "-C", loc, "add", "."])
                     if add_result.returncode != 0:
                         console.print(f"[red]Autocommit failed: git add failed[/red]")
@@ -409,7 +409,7 @@ def _autocommit():
                         console.print(f"[red]Autocommit squash failed[/red]")
                 elif commit_message:
                     # Squash not eligible (fewer than 2 autocommits), fall back to new commit
-                    _debug_out("Squash requested but not eligible, falling back to new commit")
+                    debug_out("Squash requested but not eligible, falling back to new commit")
                     add_result = subprocess.run(["git", "-C", loc, "add", "."])
                     if add_result.returncode != 0:
                         console.print(f"[red]Autocommit failed: git add failed[/red]")
@@ -424,9 +424,9 @@ def _autocommit():
             elif lower.startswith("wait"):
                 time.sleep(60) #wait a minute and then check again
                 avert = True
-                _debug_out("Autocommit delayed")
+                debug_out("Autocommit delayed")
             else:
-                _debug_out("Autocommit denied")
+                debug_out("Autocommit denied")
 
 def run() -> None:
     global rules, chat, github, gemini, access_token, key, autocommitsi, autocommit_prompt
@@ -460,8 +460,8 @@ def run() -> None:
     default_dir = rules.get("defaultgithubdir")
     system_instruction = prompt + f"\n\nUser's default GitHub directory:\"{default_dir}\"" if default_dir else prompt
 
-    _debug_out(f"Settings: {rules}")
-    _debug_out(f"System Instruction: {system_instruction}")
+    debug_out(f"Settings: {rules}")
+    debug_out(f"System Instruction: {system_instruction}")
 
     chat = gemini.chats.create(
         model=model,
@@ -471,8 +471,8 @@ def run() -> None:
         )
     )
 
-    autocommit_thread = threading.Thread(target=_autocommit, name="autocommit", daemon=True)
-    main_thread = threading.Thread(target=_main_loop, name="main-loop", daemon=True)
+    autocommit_thread = threading.Thread(target=autocommit, name="autocommit", daemon=True)
+    main_thread = threading.Thread(target=main_loop, name="main-loop", daemon=True)
     main_thread.start()
     autocommit_thread.start()
     autocommit_thread.join()

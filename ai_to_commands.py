@@ -25,13 +25,13 @@ class TaskObject():
         self.action = action
         self.task = task
         self.excecuted = executed
-    def _truncate_task(self):
+    def truncate_task(self):
         """Used for files written -- will show the first 20 chars
         followed by ... followed by the last 10
         """
         self.task = self.task[:20] + "..." + self.task[-10:]
 
-    def _getprocessstr(self):
+    def getprocessstr(self):
         stract = "Command Run: " if self.action == "c" else "File Deleted: " if self.action == "d" else "File Written: "
         return f"[{self.timestamp}] {stract}{self.task}"
 
@@ -153,7 +153,7 @@ def writeloc_direct(file_path: str, contents: str, reason: str, autowrite: bool 
         task = TaskObject("w", contents, True)
     else:
         task = TaskObject("w", contents, False)
-    task._truncate_task()
+    task.truncate_task()
     return task
 
 def structloc(*outs: tuple) -> str:
@@ -481,6 +481,6 @@ def tasks(task_list: list) -> None:
     exc = [] #excecuted
     for task in task_list:
         if task.excecuted:
-            exc.append(task._getprocessstr()) 
+            exc.append(task.getprocessstr()) 
     output = "\n".join(exc)
     console.print(f"[yellow]Tasks run:[/yellow]\n\n{output}")
