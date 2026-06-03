@@ -19,7 +19,7 @@ WRITELOC: file="./file_location" reason="reason"
 exact file contents here
 </FILE>
 -If you want to see the file structure of a directory locally, respond with 'STRUCTLOC: dir="directory"'
--If you want to ask the user a question, respond with 'ASK: text="text"'
+-If you want to ask the user a question, respond with 'ASK: text="text"' DO NOT USE THE TEXT: COMMAND FOR QUESTIONS! ONLY USE THE ASK COMMAND!!!
 -If you want to output plain text, respond with 'TEXT: text="text"'. ONLY SAY STATEMENTS WITH THIS, NO QUESTIONS!
 -If you want to run a bash command, the user must confirm first (handled by the code automatically, you will be notified if they accept or deny), respond with 'RUNCOMMAND: command="command", reason="reason"'
 -If you want to know what directory you are in, respond with 'CURRENTDIR'
